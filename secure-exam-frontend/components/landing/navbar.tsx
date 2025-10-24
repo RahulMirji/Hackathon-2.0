@@ -1,14 +1,15 @@
 "use client"
 
-import { Home, Sparkles, Trophy, Mail } from "lucide-react"
+import { Home, Info, Sparkles, Trophy, Mail } from "lucide-react"
 import { NavBar } from "@/components/ui/tubelight-navbar"
 
 export function Navbar() {
   const navItems = [
-    { name: "Home", url: "#home", icon: Home },
-    { name: "Features", url: "#features", icon: Sparkles },
-    { name: "Hackathon", url: "#hackathon", icon: Trophy },
-    { name: "Contact", url: "#contact", icon: Mail },
+    { name: "Home", url: "/landing", icon: Home },
+    { name: "About", url: "/about", icon: Info },
+    { name: "Features", url: "/landing#features", icon: Sparkles },
+    { name: "Hackathon", url: "/landing#hackathon", icon: Trophy },
+    { name: "Contact", url: "/landing#contact", icon: Mail },
   ]
 
   return <NavBar items={navItems} />
