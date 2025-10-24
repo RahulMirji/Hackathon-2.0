@@ -1,0 +1,528 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Updated to professional light blue theme inspired by Cluely.com */
+  --background: oklch(0.95 0.02 240);
+  --foreground: oklch(0.12 0.02 240); /* Darker for better contrast */
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.15 0.02 240);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.15 0.02 240);
+  --primary: oklch(0.55 0.25 240);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.5 0.2 200);
+  --secondary-foreground: oklch(1 0 0);
+  --muted: oklch(0.7 0.05 240);
+  --muted-foreground: oklch(0.4 0.05 240);
+  --accent: oklch(0.6 0.22 180);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.65 0.25 25);
+  --destructive-foreground: oklch(1 0 0);
+  --border: oklch(0.9 0.02 240);
+  --input: oklch(0.98 0.01 240);
+  --ring: oklch(0.55 0.25 240);
+  --chart-1: oklch(0.55 0.25 240);
+  --chart-2: oklch(0.6 0.22 180);
+  --chart-3: oklch(0.65 0.25 25);
+  --chart-4: oklch(0.5 0.2 200);
+  --chart-5: oklch(0.75 0.15 60);
+  --radius: 0.75rem;
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.15 0.02 240);
+  --sidebar-primary: oklch(0.55 0.25 240);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.9 0.02 240);
+  --sidebar-accent-foreground: oklch(0.15 0.02 240);
+  --sidebar-border: oklch(0.9 0.02 240);
+  --sidebar-ring: oklch(0.55 0.25 240);
+  
+  /* Semantic text colors for better contrast */
+  --text-primary: oklch(0.12 0.02 240); /* slate-900 equivalent */
+  --text-secondary: oklch(0.35 0.02 240); /* slate-700 equivalent */
+  --text-muted: oklch(0.45 0.02 240); /* slate-600 equivalent */
+}
+
+.dark {
+  --background: oklch(0.08 0 0);
+  --foreground: oklch(0.98 0 0);
+  --card: oklch(0.12 0.02 264);
+  --card-foreground: oklch(0.98 0 0);
+  --popover: oklch(0.12 0.02 264);
+  --popover-foreground: oklch(0.98 0 0);
+  --primary: oklch(0.55 0.3 264);
+  --primary-foreground: oklch(0.98 0 0);
+  --secondary: oklch(0.45 0.25 200);
+  --secondary-foreground: oklch(0.98 0 0);
+  --muted: oklch(0.25 0 0);
+  --muted-foreground: oklch(0.65 0 0);
+  --accent: oklch(0.65 0.28 180);
+  --accent-foreground: oklch(0.08 0 0);
+  --destructive: oklch(0.65 0.25 25);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.2 0.02 264);
+  --input: oklch(0.15 0.02 264);
+  --ring: oklch(0.55 0.3 264);
+  --chart-1: oklch(0.55 0.3 264);
+  --chart-2: oklch(0.65 0.28 180);
+  --chart-3: oklch(0.65 0.25 25);
+  --chart-4: oklch(0.55 0.2 200);
+  --chart-5: oklch(0.75 0.15 60);
+  --sidebar: oklch(0.12 0.02 264);
+  --sidebar-foreground: oklch(0.98 0 0);
+  --sidebar-primary: oklch(0.55 0.3 264);
+  --sidebar-primary-foreground: oklch(0.98 0 0);
+  --sidebar-accent: oklch(0.25 0 0);
+  --sidebar-accent-foreground: oklch(0.98 0 0);
+  --sidebar-border: oklch(0.2 0.02 264);
+  --sidebar-ring: oklch(0.55 0.3 264);
+}
+
+@theme inline {
+  --font-sans: "Geist", "Geist Fallback";
+  --font-mono: "Geist Mono", "Geist Mono Fallback";
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: calc(var(--radius) - 1px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Respect prefers-reduced-motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  
+  .animate-drift,
+  .animate-pulse-glow,
+  .animate-gradient-shift,
+  .animate-float,
+  .animate-glow-pulse,
+  .animate-shimmer,
+  .animate-prism-rotate,
+  .animate-liquid-wave,
+  .animate-slide-down {
+    animation: none !important;
+  }
+  
+  .slide-up,
+  .slide-in-left,
+  .slide-in-right,
+  .scale-in,
+  .fade-in {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Enhanced Glassmorphism utilities with liquid prism effects, glows, and animations */
+@layer components {
+  /* Base glass effects */
+  .glass {
+    @apply backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl;
+  }
+
+  .glass-sm {
+    @apply backdrop-blur-lg bg-white/5 border border-white/10 shadow-lg;
+  }
+
+  .glass-lg {
+    @apply backdrop-blur-2xl bg-white/15 border border-white/30 shadow-2xl;
+  }
+
+  /* New liquid prism glass effects with neon glows */
+  .glass-prism {
+    @apply backdrop-blur-2xl bg-gradient-to-br from-white/15 via-white/5 to-white/10 border border-white/30 shadow-2xl;
+  }
+
+  .glass-prism-sm {
+    @apply backdrop-blur-xl bg-gradient-to-br from-white/10 via-white/3 to-white/5 border border-white/20 shadow-lg;
+  }
+
+  .glass-prism-lg {
+    @apply backdrop-blur-3xl bg-gradient-to-br from-white/20 via-white/8 to-white/15 border border-white/40 shadow-2xl;
+  }
+
+  /* Professional light blue gradient background */
+  .gradient-liquid {
+    @apply bg-gradient-to-br from-blue-100 via-blue-50 to-cyan-50;
+  }
+
+  .gradient-prism {
+    @apply bg-gradient-to-br from-blue-200/40 via-cyan-100/30 to-blue-100/40;
+  }
+
+  .gradient-prism-intense {
+    @apply bg-gradient-to-br from-blue-300/20 via-cyan-200/15 to-blue-200/20;
+  }
+
+  /* Floating and depth effects */
+  .float-sm {
+    @apply transition-transform duration-300 hover:translate-y-[-4px];
+  }
+
+  .float-md {
+    @apply transition-transform duration-300 hover:translate-y-[-8px];
+  }
+
+  .float-lg {
+    @apply transition-transform duration-300 hover:translate-y-[-12px];
+  }
+
+  /* Luminous text effects - USE ONLY ON DARK BACKGROUNDS */
+  .text-luminous {
+    @apply text-white drop-shadow-[0_0_8px_rgba(0,122,255,0.5)];
+  }
+
+  .text-luminous-accent {
+    @apply text-white drop-shadow-[0_0_8px_rgba(0,200,255,0.5)];
+  }
+  
+  /* Dark text variant for light backgrounds */
+  .text-luminous-dark {
+    @apply text-slate-900 drop-shadow-[0_1px_2px_rgba(0,0,0,0.1)];
+  }
+
+  /* Gradient borders */
+  .border-gradient {
+    @apply relative border border-transparent bg-clip-padding;
+    background-image: linear-gradient(var(--background), var(--background)),
+      linear-gradient(135deg, rgba(0, 122, 255, 0.5), rgba(0, 200, 255, 0.5));
+    background-origin: border-box;
+    background-clip: padding-box, border-box;
+  }
+
+  /* Existing exam utilities */
+  .exam-container {
+    @apply min-h-screen bg-background text-foreground;
+  }
+
+  .exam-header {
+    @apply border-b border-border bg-card;
+  }
+
+  .exam-card {
+    @apply rounded-lg border border-border bg-card p-6 text-card-foreground;
+  }
+
+  .exam-button-primary {
+    @apply rounded-lg bg-primary px-6 py-2 font-medium text-primary-foreground transition-all hover:opacity-90 disabled:opacity-50;
+  }
+
+  .exam-button-secondary {
+    @apply rounded-lg border border-border bg-secondary px-6 py-2 font-medium text-secondary-foreground transition-all hover:bg-muted disabled:opacity-50;
+  }
+
+  .exam-alert {
+    @apply rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-destructive;
+  }
+
+  .exam-success {
+    @apply rounded-lg border border-accent/30 bg-accent/10 p-4 text-accent;
+  }
+
+  .monitoring-badge {
+    @apply inline-flex items-center gap-2 rounded-full bg-primary/20 px-3 py-1 text-sm font-medium text-primary;
+  }
+
+  .attention-indicator {
+    @apply h-2 w-2 rounded-full;
+  }
+}
+
+/* Keyframe animations for liquid prism effects */
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes glow-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(0, 122, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(0, 122, 255, 0.8);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes prism-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes liquid-wave {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  25% {
+    transform: translateY(-5px);
+  }
+  50% {
+    transform: translateY(0px);
+  }
+  75% {
+    transform: translateY(5px);
+  }
+}
+
+@keyframes drift {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  25% {
+    transform: translate(10px, -10px);
+  }
+  50% {
+    transform: translate(-5px, 10px);
+  }
+  75% {
+    transform: translate(-10px, -5px);
+  }
+}
+
+@keyframes pulse-glow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 40px rgba(59, 130, 246, 0.6);
+  }
+}
+
+@keyframes gradient-shift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@layer utilities {
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-glow-pulse {
+    animation: glow-pulse 2s ease-in-out infinite;
+  }
+
+  .animate-shimmer {
+    animation: shimmer 3s infinite;
+    background-size: 1000px 100%;
+  }
+
+  .animate-prism-rotate {
+    animation: prism-rotate 20s linear infinite;
+  }
+
+  .animate-liquid-wave {
+    animation: liquid-wave 4s ease-in-out infinite;
+  }
+  
+  /* New scroll-triggered animation utilities */
+  .fade-in {
+    @apply opacity-0 transition-opacity duration-700 ease-out;
+  }
+  
+  .fade-in.in-view {
+    @apply opacity-100;
+  }
+  
+  .slide-up {
+    @apply opacity-0 translate-y-[30px] transition-all duration-700 ease-out;
+  }
+  
+  .slide-up.in-view {
+    @apply opacity-100 translate-y-0;
+  }
+  
+  .slide-in-left {
+    @apply opacity-0 -translate-x-[30px] transition-all duration-700 ease-out;
+  }
+  
+  .slide-in-left.in-view {
+    @apply opacity-100 translate-x-0;
+  }
+  
+  .slide-in-right {
+    @apply opacity-0 translate-x-[30px] transition-all duration-700 ease-out;
+  }
+  
+  .slide-in-right.in-view {
+    @apply opacity-100 translate-x-0;
+  }
+  
+  .scale-in {
+    @apply opacity-0 scale-95 transition-all duration-700 ease-out;
+  }
+  
+  .scale-in.in-view {
+    @apply opacity-100 scale-100;
+  }
+  
+  /* Stagger delay utilities */
+  .stagger-1 {
+    @apply delay-100;
+  }
+  
+  .stagger-2 {
+    @apply delay-200;
+  }
+  
+  .stagger-3 {
+    @apply delay-300;
+  }
+  
+  .stagger-4 {
+    @apply delay-[400ms];
+  }
+  
+  .stagger-5 {
+    @apply delay-[500ms];
+  }
+  
+  .stagger-6 {
+    @apply delay-[600ms];
+  }
+  
+  /* Enhanced hover effects */
+  .hover-lift {
+    @apply transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl;
+  }
+  
+  .hover-glow-blue {
+    @apply transition-shadow duration-500 hover:shadow-[0_0_30px_rgba(59,130,246,0.5)];
+  }
+  
+  .hover-scale-105 {
+    @apply transition-transform duration-300 hover:scale-105;
+  }
+  
+  .hover-brightness {
+    @apply transition-all duration-300 hover:brightness-110;
+  }
+  
+  /* Parallax utilities */
+  .parallax-slow {
+    @apply transition-transform duration-100 ease-out;
+  }
+  
+  .parallax-fast {
+    @apply transition-transform duration-75 ease-out;
+  }
+  
+  /* Continuous b-roll animations */
+  .animate-drift {
+    animation: drift 20s ease-in-out infinite;
+  }
+  
+  .animate-pulse-glow {
+    animation: pulse-glow 3s ease-in-out infinite;
+  }
+  
+  .animate-gradient-shift {
+    animation: gradient-shift 8s ease-in-out infinite;
+    background-size: 200% 200%;
+  }
+  
+  /* Typography enhancements */
+  .text-gradient-blue {
+    @apply bg-gradient-to-r from-blue-600 to-cyan-500 bg-clip-text text-transparent;
+  }
+  
+  .text-display {
+    @apply text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl;
+  }
+  
+  .text-balance {
+    text-wrap: balance;
+  }
+  
+  /* Mobile menu slide-down animation */
+  .animate-slide-down {
+    animation: slide-down 0.3s ease-out;
+  }
+}
