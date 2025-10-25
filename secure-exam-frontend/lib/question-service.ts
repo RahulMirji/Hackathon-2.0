@@ -84,111 +84,157 @@ export async function getOrLoadSectionQuestions(
   return loadQuestionsWithStreaming(section, onProgress)
 }
 
-// Load remaining questions to complete a partial set
+// Load remaining questions to complete a partial set with retry logic
 async function loadRemainingQuestions(
   section: string,
   existingQuestions: any[],
   count: number,
-  onProgress?: (questions: any[], count: number) => void
+  onProgress?: (questions: any[], count: number) => void,
+  retryCount: number = 0
 ): Promise<QuestionLoadResult> {
+  const maxRetries = 3
+  
   if (process.env.NODE_ENV !== 'production') {
-    console.log(`📡 [QUESTION-SERVICE] Generating ${count} remaining questions for ${section}...`)
+    console.log(`📡 [QUESTION-SERVICE] Generating ${count} remaining questions for ${section}... (attempt ${retryCount + 1}/${maxRetries})`)
     console.log(`📋 [QUESTION-SERVICE] Current questions: ${existingQuestions.length}`)
   }
 
-  // Request MORE questions than needed to account for potential duplicates
-  const requestCount = Math.ceil(count * 1.5) // Request 50% more
-  
-  const response = await fetchWithRetry("/api/generate-questions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ section, count: requestCount }),
-  })
+  try {
+    // Request MORE questions than needed to account for potential duplicates
+    const requestCount = Math.max(count * 2, 10) // Request at least 10 or 2x needed
+    
+    const response = await fetchWithRetry("/api/generate-questions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ section, count: requestCount }),
+    })
 
-  if (!response.ok) {
-    throw new Error(`API failed with status: ${response.status}`)
-  }
+    if (!response.ok) {
+      throw new Error(`API failed with status: ${response.status}`)
+    }
 
-  const reader = response.body?.getReader()
-  if (!reader) {
-    throw new Error("No reader available")
-  }
+    const reader = response.body?.getReader()
+    if (!reader) {
+      throw new Error("No reader available")
+    }
 
-  const decoder = new TextDecoder()
+    const decoder = new TextDecoder()
+    let requestId = "unknown"
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
 
-    const chunk = decoder.decode(value, { stream: true })
-    const lines = chunk.split("\n")
+      const chunk = decoder.decode(value, { stream: true })
+      const lines = chunk.split("\n")
 
-    for (const line of lines) {
-      if (line.startsWith("data: ")) {
-        try {
-          const data = JSON.parse(line.slice(6)) as SSEEvent
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            const data = JSON.parse(line.slice(6)) as SSEEvent
 
-          if (data.type === "complete") {
-            // Filter out questions that are similar to existing ones
-            const existingTitles = new Set(
-              existingQuestions.map(q => {
+            if (data.type === "init" && "requestId" in data) {
+              requestId = data.requestId
+              continue
+            }
+
+            if (data.type === "complete") {
+              // Filter out questions that are similar to existing ones
+              const existingTitles = new Set(
+                existingQuestions.map(q => {
+                  const title = q.title || q.text || ''
+                  return title.toLowerCase().replace(/[^a-z0-9]/g, '')
+                })
+              )
+
+              const newQuestions = data.questions.filter(q => {
                 const title = q.title || q.text || ''
-                return title.toLowerCase().replace(/[^a-z0-9]/g, '')
+                const normalized = title.toLowerCase().replace(/[^a-z0-9]/g, '')
+                return !existingTitles.has(normalized)
               })
-            )
 
-            const newQuestions = data.questions.filter(q => {
-              const title = q.title || q.text || ''
-              const normalized = title.toLowerCase().replace(/[^a-z0-9]/g, '')
-              return !existingTitles.has(normalized)
-            })
+              if (process.env.NODE_ENV !== 'production') {
+                console.log(`🔍 [QUESTION-SERVICE] Filtered ${data.questions.length} → ${newQuestions.length} unique questions`)
+              }
 
-            if (process.env.NODE_ENV !== 'production') {
-              console.log(`🔍 [QUESTION-SERVICE] Filtered ${data.questions.length} → ${newQuestions.length} unique questions`)
+              // If we didn't get enough unique questions, retry
+              if (newQuestions.length < count && retryCount < maxRetries - 1) {
+                console.warn(`⚠️ [QUESTION-SERVICE] Only got ${newQuestions.length}/${count} unique questions. Retrying...`)
+                return loadRemainingQuestions(section, existingQuestions, count, onProgress, retryCount + 1)
+              }
+
+              // Take only what we need
+              const questionsToAdd = newQuestions.slice(0, count)
+              
+              if (questionsToAdd.length === 0) {
+                console.warn(`⚠️ [QUESTION-SERVICE] No unique questions generated. Using existing ${existingQuestions.length}`)
+                return {
+                  questions: existingQuestions,
+                  source: "cache"
+                }
+              }
+              
+              // Renumber to continue from existing
+              const startId = existingQuestions.length + 1
+              const renumbered = questionsToAdd.map((q, idx) => ({
+                ...q,
+                id: startId + idx
+              }))
+
+              // Combine with existing questions
+              const allQuestions = [...existingQuestions, ...renumbered]
+              
+              // Save to cache
+              saveSectionQuestions(section, allQuestions)
+              
+              if (process.env.NODE_ENV !== 'production') {
+                console.log(`✅ [QUESTION-SERVICE] Added ${renumbered.length} questions. Total: ${allQuestions.length}`)
+              }
+
+              // Report progress
+              if (onProgress) {
+                onProgress(allQuestions, allQuestions.length)
+              }
+
+              return {
+                questions: allQuestions,
+                source: "ai"
+              }
             }
 
-            // Take only what we need
-            const questionsToAdd = newQuestions.slice(0, count)
-            
-            // Renumber to continue from existing
-            const startId = existingQuestions.length + 1
-            const renumbered = questionsToAdd.map((q, idx) => ({
-              ...q,
-              id: startId + idx
-            }))
-
-            // Combine with existing questions
-            const allQuestions = [...existingQuestions, ...renumbered]
-            
-            // Save to cache
-            saveSectionQuestions(section, allQuestions)
-            
-            if (process.env.NODE_ENV !== 'production') {
-              console.log(`✅ [QUESTION-SERVICE] Added ${renumbered.length} questions. Total: ${allQuestions.length}`)
+            if (data.type === "error") {
+              throw new Error(data.message)
             }
-
-            // Report progress
-            if (onProgress) {
-              onProgress(allQuestions, allQuestions.length)
-            }
-
-            return {
-              questions: allQuestions,
-              source: "ai"
-            }
+          } catch (e) {
+            // Continue on parse errors
           }
-
-          if (data.type === "error") {
-            throw new Error(data.message)
-          }
-        } catch (e) {
-          // Continue on parse errors
         }
       }
     }
-  }
 
-  throw new Error("No questions received")
+    // If we reach here, no complete event was received
+    if (retryCount < maxRetries - 1) {
+      console.warn(`⚠️ [QUESTION-SERVICE] No complete event received. Retrying...`)
+      return loadRemainingQuestions(section, existingQuestions, count, onProgress, retryCount + 1)
+    }
+    
+    throw new Error("No questions received after all retries")
+  } catch (error) {
+    // Retry on error
+    if (retryCount < maxRetries - 1) {
+      console.warn(`⚠️ [QUESTION-SERVICE] Error generating questions. Retrying... (${retryCount + 1}/${maxRetries})`)
+      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1))) // Exponential backoff
+      return loadRemainingQuestions(section, existingQuestions, count, onProgress, retryCount + 1)
+    }
+    
+    // After all retries, return what we have
+    console.error(`❌ [QUESTION-SERVICE] Failed after ${maxRetries} attempts. Using existing ${existingQuestions.length} questions`)
+    return {
+      questions: existingQuestions,
+      source: "cache",
+      error: error instanceof Error ? error.message : "Unknown error"
+    }
+  }
 }
 
 export async function loadQuestionsWithStreaming(

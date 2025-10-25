@@ -54,10 +54,11 @@ export default function ExamSectionsPage() {
     loadAllSections()
   }, [])
 
-  const loadSection = async (section: string): Promise<void> => {
+  const loadSection = async (section: string, retryAttempt: number = 0): Promise<void> => {
     const logger = createLogger({ section, event: "load-section" })
+    const maxRetries = 3
     
-    logger.info("Loading section")
+    logger.info("Loading section", { attempt: retryAttempt + 1 })
     setLoadingStatus(prev => ({ ...prev, [section]: false }))
 
     try {
@@ -66,24 +67,48 @@ export default function ExamSectionsPage() {
         logger.info("Progress update", { count })
         setQuestionCounts(prev => ({ ...prev, [section]: count }))
         
-        // Enable section if we have minimum questions
-        if (count >= 3) {
+        // Enable section if we have minimum questions (80% of expected)
+        const expectedCount = sections.find(s => s.id === section)?.questions || 25
+        if (count >= expectedCount * 0.8) {
           setLoadingStatus(prev => ({ ...prev, [section]: true }))
         }
       })
 
+      // Check if we got all expected questions
+      const expectedCount = sections.find(s => s.id === section)?.questions || 25
+      const gotAll = result.questions.length >= expectedCount
+      
       // Final update
       setLoadingStatus(prev => ({ ...prev, [section]: true }))
       setQuestionCounts(prev => ({ ...prev, [section]: result.questions.length }))
       setQuestionSources(prev => ({ ...prev, [section]: result.source }))
-      logger.info("Section loaded", { count: result.questions.length, source: result.source })
+      logger.info("Section loaded", { count: result.questions.length, source: result.source, complete: gotAll })
+      
+      // If incomplete and we haven't exceeded retries, try again automatically
+      if (!gotAll && retryAttempt < maxRetries && result.source !== "mock") {
+        const missing = expectedCount - result.questions.length
+        logger.info("Incomplete section, auto-retrying", { missing, attempt: retryAttempt + 1 })
+        
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        // Retry loading
+        await loadSection(section, retryAttempt + 1)
+      }
     } catch (error) {
       logger.error("Failed to load section", { 
         error: error instanceof Error ? error.message : String(error) 
       })
       
-      // Mark as failed but don't block
-      setLoadingStatus(prev => ({ ...prev, [section]: false }))
+      // Retry on error if we haven't exceeded max retries
+      if (retryAttempt < maxRetries) {
+        logger.info("Retrying after error", { attempt: retryAttempt + 1 })
+        await new Promise(resolve => setTimeout(resolve, 2000 * (retryAttempt + 1)))
+        await loadSection(section, retryAttempt + 1)
+      } else {
+        // Mark as failed after all retries
+        setLoadingStatus(prev => ({ ...prev, [section]: false }))
+      }
     }
   }
 
@@ -170,21 +195,7 @@ export default function ExamSectionsPage() {
     }
   }
 
-  const handleGenerateMore = async (sectionId: string) => {
-    const logger = createLogger({ section: sectionId, event: "generate-more" })
-    
-    // Get current count
-    const currentCount = questionCounts[sectionId] || 0
-    const expectedCount = sections.find(s => s.id === sectionId)?.questions || 25
-    const missing = expectedCount - currentCount
-    
-    logger.info("Generating missing questions", { current: currentCount, expected: expectedCount, missing })
-    
-    // Don't clear cache - keep existing questions and add more
-    // The loadSection will detect incomplete cache and generate remaining
-    setLoadingStatus(prev => ({ ...prev, [sectionId]: false }))
-    await loadSection(sectionId)
-  }
+
 
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800">
@@ -268,36 +279,21 @@ export default function ExamSectionsPage() {
                       {!loadingStatus[section.id] ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          {questionCounts[section.id] ? `${questionCounts[section.id]}/${section.questions}` : 'Loading...'}
+                          {questionCounts[section.id] ? `Generating ${questionCounts[section.id]}/${section.questions}...` : 'Loading...'}
                         </>
                       ) : (
                         <>
                           Start {section.title}
-                          {questionCounts[section.id] && questionCounts[section.id] < section.questions && 
-                            ` (${questionCounts[section.id]}/${section.questions})`
-                          }
                         </>
                       )}
                     </Button>
                     
-                    {/* Show "Generate More" button if incomplete */}
-                    {loadingStatus[section.id] && questionCounts[section.id] && questionCounts[section.id] < section.questions && (
-                      <Button
-                        onClick={() => handleGenerateMore(section.id)}
-                        variant="outline"
-                        size="sm"
-                        className="w-full h-7 text-xs"
-                      >
-                        Generate {section.questions - questionCounts[section.id]} More
-                      </Button>
-                    )}
-                    
                     {loadingStatus[section.id] && questionSources[section.id] && (
                       <div className="text-[10px] text-center text-muted-foreground">
-                        {questionSources[section.id] === "api" && "✓ AI Generated"}
-                        {questionSources[section.id] === "ai" && "✓ AI Generated"}
+                        {questionSources[section.id] === "api" && `✓ ${questionCounts[section.id]}/${section.questions} AI Generated`}
+                        {questionSources[section.id] === "ai" && `✓ ${questionCounts[section.id]}/${section.questions} AI Generated`}
                         {questionSources[section.id] === "mock" && "⚠ Using Fallback"}
-                        {questionSources[section.id] === "cache" && "✓ Cached"}
+                        {questionSources[section.id] === "cache" && `✓ ${questionCounts[section.id]}/${section.questions} Cached`}
                       </div>
                     )}
                   </div>
