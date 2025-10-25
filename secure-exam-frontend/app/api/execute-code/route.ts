@@ -1,17 +1,24 @@
 import { NextRequest, NextResponse } from "next/server"
-import { exec } from "child_process"
-import { promisify } from "util"
-import { writeFile, mkdir } from "fs/promises"
-import { join } from "path"
-import { tmpdir } from "os"
-import { normalizeOutput, sanitizeTestInput } from "@/lib/utils"
-
-const execAsync = promisify(exec)
+import { normalizeOutput } from "@/lib/utils"
 
 interface ExecuteCodeRequest {
   code: string
   language: string
   input?: string
+}
+
+// Piston API endpoint (free and open-source code execution API)
+const PISTON_API_URL = "https://emkc.org/api/v2/piston"
+
+// Language mapping for Piston API
+const LANGUAGE_MAP: Record<string, { language: string; version: string }> = {
+  python: { language: "python", version: "3.10.0" },
+  javascript: { language: "javascript", version: "18.15.0" },
+  js: { language: "javascript", version: "18.15.0" },
+  java: { language: "java", version: "15.0.2" },
+  c: { language: "c", version: "10.2.0" },
+  cpp: { language: "c++", version: "10.2.0" },
+  "c++": { language: "c++", version: "10.2.0" },
 }
 
 export async function POST(request: NextRequest) {
@@ -37,104 +44,100 @@ export async function POST(request: NextRequest) {
 }
 
 async function executeCode(code: string, language: string, input: string) {
-  const tempDir = join(tmpdir(), `code-exec-${Date.now()}-${Math.random().toString(36).substring(7)}`)
-  await mkdir(tempDir, { recursive: true })
+  const startTime = Date.now()
 
   try {
-    let command: string
-    let filePath: string
-    let inputFilePath: string | null = null
-
-    // Create input file if input is provided
-    if (input) {
-      inputFilePath = join(tempDir, "input.txt")
-      // Sanitize input to ensure it ends with newline
-      const sanitizedInput = sanitizeTestInput(input)
-      await writeFile(inputFilePath, sanitizedInput)
+    // Get language configuration for Piston API
+    const langConfig = LANGUAGE_MAP[language.toLowerCase()]
+    if (!langConfig) {
+      throw new Error(`Unsupported language: ${language}`)
     }
 
-    switch (language.toLowerCase()) {
-      case "python":
-        filePath = join(tempDir, "main.py")
-        await writeFile(filePath, code)
-        // Try python first (Windows), then python3 (Linux/Mac)
-        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3'
-        command = inputFilePath 
-          ? `${pythonCmd} "${filePath}" < "${inputFilePath}"`
-          : `${pythonCmd} "${filePath}"`
-        break
-
-      case "java":
-        filePath = join(tempDir, "Main.java")
-        await writeFile(filePath, code)
-        command = inputFilePath
-          ? `cd "${tempDir}" && javac Main.java && java Main < "${inputFilePath}"`
-          : `cd "${tempDir}" && javac Main.java && java Main`
-        break
-
-      case "cpp":
-      case "c++":
-        filePath = join(tempDir, "main.cpp")
-        await writeFile(filePath, code)
-        const cppExec = join(tempDir, "main")
-        command = inputFilePath
-          ? `g++ "${filePath}" -o "${cppExec}" && "${cppExec}" < "${inputFilePath}"`
-          : `g++ "${filePath}" -o "${cppExec}" && "${cppExec}"`
-        break
-
-      case "c":
-        filePath = join(tempDir, "main.c")
-        await writeFile(filePath, code)
-        const cExec = join(tempDir, "main")
-        command = inputFilePath
-          ? `gcc "${filePath}" -o "${cExec}" && "${cExec}" < "${inputFilePath}"`
-          : `gcc "${filePath}" -o "${cExec}" && "${cExec}"`
-        break
-
-      default:
-        throw new Error(`Unsupported language: ${language}`)
+    // Prepare the request payload for Piston API
+    const payload = {
+      language: langConfig.language,
+      version: langConfig.version,
+      files: [
+        {
+          name: getFileName(language),
+          content: code,
+        },
+      ],
+      stdin: input,
+      args: [],
+      compile_timeout: 10000,
+      run_timeout: 3000,
+      compile_memory_limit: -1,
+      run_memory_limit: -1,
     }
 
-    const startTime = Date.now()
-    const { stdout, stderr } = await execAsync(command, {
-      timeout: 10000, // 10 second timeout
-      maxBuffer: 1024 * 1024, // 1MB buffer
-      cwd: tempDir,
+    // Execute code via Piston API
+    const response = await fetch(`${PISTON_API_URL}/execute`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
     })
+
+    if (!response.ok) {
+      throw new Error(`Piston API error: ${response.status} ${response.statusText}`)
+    }
+
+    const result = await response.json()
     const executionTime = Date.now() - startTime
 
-    // Normalize output for consistent comparison
-    const normalizedOutput = normalizeOutput(stdout || stderr)
+    // Check for compilation errors
+    if (result.compile && result.compile.code !== 0) {
+      return {
+        success: false,
+        output: "",
+        error: result.compile.stderr || result.compile.output || "Compilation failed",
+        executionTime,
+      }
+    }
+
+    // Check for runtime errors
+    if (result.run && result.run.code !== 0 && result.run.signal) {
+      return {
+        success: false,
+        output: result.run.stdout || "",
+        error: result.run.stderr || `Program terminated with signal: ${result.run.signal}`,
+        executionTime,
+      }
+    }
+
+    // Success case
+    const output = result.run?.stdout || result.run?.output || ""
+    const error = result.run?.stderr || null
 
     return {
       success: true,
-      output: normalizedOutput,
+      output: normalizeOutput(output),
       executionTime,
-      error: stderr && !stdout ? stderr : null,
+      error: error && !output ? error : null,
     }
   } catch (error: any) {
-    let errorMessage = error.stderr || error.message || "Execution failed"
-    
-    // Provide helpful error message if Python is not found
-    if (language.toLowerCase() === 'python' && errorMessage.includes('not found')) {
-      errorMessage = "Python is not installed or not in PATH. Please install Python from python.org and add it to your system PATH."
-    }
-    
+    const executionTime = Date.now() - startTime
     return {
       success: false,
       output: "",
-      error: errorMessage,
-      executionTime: 0,
-    }
-  } finally {
-    // Cleanup temp files
-    try {
-      const cleanupCmd = process.platform === 'win32' 
-        ? `rmdir /s /q "${tempDir}"`
-        : `rm -rf "${tempDir}"`
-      await execAsync(cleanupCmd)
-    } catch (cleanupError) {
-      console.error("Cleanup error:", cleanupError)
+      error: error.message || "Execution failed",
+      executionTime,
     }
   }
+}
+
+// Helper function to get appropriate filename for each language
+function getFileName(language: string): string {
+  const fileNames: Record<string, string> = {
+    python: "main.py",
+    javascript: "main.js",
+    js: "main.js",
+    java: "Main.java",
+    c: "main.c",
+    cpp: "main.cpp",
+    "c++": "main.cpp",
+  }
+  return fileNames[language.toLowerCase()] || "main.txt"
 }
