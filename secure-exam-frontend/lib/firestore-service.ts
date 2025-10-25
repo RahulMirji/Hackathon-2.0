@@ -197,23 +197,26 @@ export async function saveQuestions(
   const batch = writeBatch(db)
   
   questions.forEach((q, index) => {
-    const questionDoc: QuestionDocument = {
+    const questionDoc: any = {
       questionId: `${section}_q${q.id || index + 1}`,
       section,
       questionNumber: q.id || index + 1,
       type: section === "coding" ? "coding" : "mcq",
       title: q.title || q.text || "",
-      description: q.description,
-      options: q.options,
-      correctAnswer: q.correctAnswer || q.answer,
-      constraints: q.constraints,
-      examples: q.examples,
-      testCases: q.testCases,
-      difficulty: q.difficulty,
-      tags: q.tags,
       source: q.source || "ai",
       createdAt: Timestamp.now(),
     }
+    
+    // Only add fields if they're not undefined
+    if (q.description !== undefined) questionDoc.description = q.description
+    if (q.options !== undefined) questionDoc.options = q.options
+    if (q.correctAnswer !== undefined) questionDoc.correctAnswer = q.correctAnswer
+    if (q.answer !== undefined) questionDoc.correctAnswer = q.answer
+    if (q.constraints !== undefined) questionDoc.constraints = q.constraints
+    if (q.examples !== undefined) questionDoc.examples = q.examples
+    if (q.testCases !== undefined) questionDoc.testCases = q.testCases
+    if (q.difficulty !== undefined) questionDoc.difficulty = q.difficulty
+    if (q.tags !== undefined) questionDoc.tags = q.tags
     
     const docRef = doc(
       db,
@@ -287,22 +290,27 @@ export async function saveAnswer(
   
   if (docSnap.exists()) {
     // Update existing answer
-    await updateDoc(docRef, {
-      userAnswer,
+    const updateData: any = {
       status,
       markedForReview,
       timeSpent,
       lastModifiedAt: now,
       updatedAt: now,
-    })
+    }
+    
+    // Only add userAnswer if it's not undefined
+    if (userAnswer !== undefined) {
+      updateData.userAnswer = userAnswer
+    }
+    
+    await updateDoc(docRef, updateData)
   } else {
     // Create new answer
-    const answerDoc: AnswerDocument = {
+    const answerDoc: any = {
       answerId,
       questionId,
       section,
       questionNumber,
-      userAnswer,
       status,
       markedForReview,
       timeSpent,
@@ -311,6 +319,12 @@ export async function saveAnswer(
       createdAt: now,
       updatedAt: now,
     }
+    
+    // Only add userAnswer if it's not undefined
+    if (userAnswer !== undefined) {
+      answerDoc.userAnswer = userAnswer
+    }
+    
     await setDoc(docRef, answerDoc)
   }
   
@@ -410,16 +424,20 @@ export async function logViolation(
   duration?: number
 ): Promise<void> {
   const violationId = `${type}_${Date.now()}`
-  const violation: ViolationDocument = {
+  const violation: any = {
     violationId,
     type,
     timestamp: Timestamp.now(),
     section,
     severity,
     description,
-    duration,
     resolved: false,
     createdAt: Timestamp.now(),
+  }
+  
+  // Only add duration if it's defined
+  if (duration !== undefined) {
+    violation.duration = duration
   }
   
   const docRef = doc(
