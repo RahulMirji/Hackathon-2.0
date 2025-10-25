@@ -30,22 +30,27 @@ export function NavBar({ items, className }: NavBarProps) {
     return () => window.removeEventListener("resize", handleResize)
   }, [])
 
-  // Scroll-based active section detection
+  // Scroll-based active section detection (only for hash links)
   useEffect(() => {
     const handleScroll = () => {
-      const sections = items.map((item) => {
-        const id = item.url.replace("#", "")
-        const element = document.getElementById(id)
-        if (element) {
-          const rect = element.getBoundingClientRect()
-          return {
-            name: item.name,
-            top: rect.top,
-            bottom: rect.bottom,
+      const sections = items
+        .filter((item) => item.url.startsWith("#")) // Only check hash links
+        .map((item) => {
+          const id = item.url.replace("#", "")
+          const element = document.getElementById(id)
+          if (element) {
+            const rect = element.getBoundingClientRect()
+            return {
+              name: item.name,
+              top: rect.top,
+              bottom: rect.bottom,
+            }
           }
-        }
-        return null
-      }).filter(Boolean)
+          return null
+        })
+        .filter(Boolean)
+
+      if (sections.length === 0) return
 
       // Find the section that's most visible in the viewport
       const viewportMiddle = window.innerHeight / 2
@@ -76,6 +81,20 @@ export function NavBar({ items, className }: NavBarProps) {
     handleScroll() // Initial check
     window.addEventListener("scroll", handleScroll, { passive: true })
     return () => window.removeEventListener("scroll", handleScroll)
+  }, [items])
+
+  // Set active tab based on current pathname
+  useEffect(() => {
+    const currentPath = window.location.pathname
+    const matchingItem = items.find((item) => {
+      if (item.url.startsWith("/")) {
+        return currentPath === item.url || currentPath.startsWith(item.url + "/")
+      }
+      return false
+    })
+    if (matchingItem) {
+      setActiveTab(matchingItem.name)
+    }
   }, [items])
 
   return (
