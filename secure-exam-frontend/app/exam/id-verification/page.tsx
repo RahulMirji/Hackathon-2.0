@@ -28,55 +28,48 @@ export default function IDVerificationPage() {
     setCameraError(null)
     setCameraLoading(true)
     
-    // Set a timeout to prevent hanging
-    const timeout = setTimeout(() => {
-      setCameraLoading(false)
-      setCameraError("Camera is taking too long to start. You can skip this step and continue.")
-    }, 5000) // 5 second timeout
-    
     try {
-      // Use lower resolution for faster startup
+      console.log("Requesting camera access...")
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: "user",
-          width: { ideal: 480, max: 640 },
-          height: { ideal: 360, max: 480 },
-          frameRate: { ideal: 15, max: 30 }
+          width: { ideal: 640 },
+          height: { ideal: 480 }
         },
       })
       
-      clearTimeout(timeout) // Clear timeout if successful
+      console.log("Camera stream obtained:", stream)
       
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-        
-        // Simplified approach - set active immediately and let video load
-        setCameraActive(true)
-        setCameraLoading(false)
-        
-        // Auto-play the video
-        setTimeout(() => {
-          if (videoRef.current) {
-            videoRef.current.play().catch((err) => {
-              console.error("Error playing video:", err)
-              setCameraError("Failed to start video playback. You can skip this step and continue.")
-            })
-          }
-        }, 100)
-      }
+      // Set camera active first to render the video element
+      setCameraActive(true)
+      
+      // Wait for next tick to ensure video element is rendered
+      setTimeout(() => {
+        if (videoRef.current) {
+          console.log("Setting video source...")
+          videoRef.current.srcObject = stream
+          setCameraLoading(false)
+          console.log("Camera should be active now")
+        } else {
+          console.error("Video ref is still null after render")
+          setCameraError("Video element not found.")
+          setCameraLoading(false)
+        }
+      }, 100)
+      
     } catch (error) {
-      clearTimeout(timeout) // Clear timeout on error
       console.error("Error accessing camera:", error)
       const errorMessage =
         error instanceof DOMException
           ? error.name === "NotAllowedError"
-            ? "Camera permission denied. You can skip this step and continue."
+            ? "Camera permission denied."
             : error.name === "NotFoundError"
-              ? "No camera found. You can skip this step and continue."
-              : "Failed to access camera. You can skip this step and continue."
-          : "Failed to access camera. You can skip this step and continue."
+              ? "No camera found."
+              : "Failed to access camera."
+          : "Failed to access camera."
       setCameraError(errorMessage)
       setCameraLoading(false)
+      setCameraActive(false)
     }
   }
 
@@ -84,9 +77,17 @@ export default function IDVerificationPage() {
     if (videoRef.current && videoRef.current.srcObject) {
       const stream = videoRef.current.srcObject as MediaStream
       stream.getTracks().forEach((track) => track.stop())
+      videoRef.current.srcObject = null
       setCameraActive(false)
     }
   }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      stopCamera()
+    }
+  }, [])
 
   const capturePhoto = () => {
     if (videoRef.current && canvasRef.current) {
@@ -94,24 +95,26 @@ export default function IDVerificationPage() {
       const canvas = canvasRef.current
       const context = canvas.getContext("2d")
       
-      if (context && video.videoWidth > 0 && video.videoHeight > 0) {
-        // Set canvas dimensions to match video
-        canvas.width = video.videoWidth
-        canvas.height = video.videoHeight
-        
-        // Draw the video frame to canvas
-        context.drawImage(video, 0, 0, canvas.width, canvas.height)
-        
-        // Get image data
-        const imageData = canvas.toDataURL("image/jpeg", 0.8)
-        setPhotoData(imageData)
-        setPhotoTaken(true)
-
-        // Stop camera
-        stopCamera()
-      } else {
+      // Check if video is ready
+      if (!context || video.videoWidth === 0 || video.videoHeight === 0) {
         setCameraError("Camera not ready. Please wait a moment and try again.")
+        return
       }
+      
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      
+      // Draw the video frame to canvas
+      context.drawImage(video, 0, 0, canvas.width, canvas.height)
+      
+      // Get image data
+      const imageData = canvas.toDataURL("image/jpeg", 0.9)
+      setPhotoData(imageData)
+      setPhotoTaken(true)
+
+      // Stop camera
+      stopCamera()
     }
   }
 
@@ -146,66 +149,62 @@ export default function IDVerificationPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-indigo-950">
+    <main className="min-h-screen bg-[#f5f5f5]">
       {/* Header */}
-      <div className="sticky top-0 z-40 border-b border-border bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm">
-        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <div className="sticky top-0 z-40 border-b border-gray-200 bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
-                <Shield className="h-6 w-6 text-white" />
+            <div className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-lg bg-[#4355f9] flex items-center justify-center">
+                <Shield className="h-5 w-5 text-white" strokeWidth={2.5} />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Identity Verification</h1>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Secure identity verification for exam access</p>
+                <h1 className="text-xl font-bold text-gray-900">Identity Verification</h1>
+                <p className="text-sm text-gray-600">Secure identity verification for exam access</p>
               </div>
             </div>
-            <div className="flex items-center gap-3">
-              <Badge variant="outline" className="text-sm">
-                Step 2 of 4
-              </Badge>
+            <div className="text-sm text-gray-600 font-medium">
+              Step 2 of 4
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+      <div className="max-w-6xl mx-auto px-6 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           
           {/* Left Section - Face Verification */}
-          <Card className="p-6 shadow-lg border-2 border-gray-200 dark:border-gray-700 h-fit">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
-                <User className="h-4 w-4 text-white" />
+          <Card className="bg-white p-5 shadow-sm border border-gray-200 rounded-lg flex flex-col">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="h-8 w-8 rounded-lg bg-[#1ba94c] flex items-center justify-center">
+                <User className="h-4.5 w-4.5 text-white" strokeWidth={2.5} />
               </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Face Verification</h2>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Take a clear photo of your face (optional)</p>
+              <div className="flex-1">
+                <h2 className="text-sm font-bold text-gray-900">Face Verification</h2>
+                <p className="text-xs text-gray-600">Take a clear photo of your face (optional)</p>
               </div>
-              {photoTaken && (
-                <div className="ml-auto">
-                  <Badge className="bg-green-100 text-green-800 border-green-200">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Completed
-                  </Badge>
-                </div>
-              )}
             </div>
 
-            <div className="space-y-4">
+            <div className="flex-1 flex flex-col">
+              {/* Hidden canvas for capturing photos */}
+              <canvas ref={canvasRef} className="hidden" />
+              
               {!photoTaken ? (
-                <div className="space-y-4">
+                <div className="flex-1 flex flex-col justify-between">
                   {cameraActive ? (
-                    <div className="space-y-3">
-                      <div className="relative overflow-hidden rounded-xl border-2 border-blue-200 bg-black flex items-center justify-center h-64">
-                        <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover rounded-lg" />
-                        <div className="absolute inset-0 border-4 border-blue-500/30 rounded-xl pointer-events-none">
-                          <div className="absolute top-4 left-4 w-8 h-8 border-l-4 border-t-4 border-blue-500 rounded-tl-lg"></div>
-                          <div className="absolute top-4 right-4 w-8 h-8 border-r-4 border-t-4 border-blue-500 rounded-tr-lg"></div>
-                          <div className="absolute bottom-4 left-4 w-8 h-8 border-l-4 border-b-4 border-blue-500 rounded-bl-lg"></div>
-                          <div className="absolute bottom-4 right-4 w-8 h-8 border-r-4 border-b-4 border-blue-500 rounded-br-lg"></div>
-                        </div>
+                    <div className="space-y-2.5">
+                      <div className="relative overflow-hidden rounded-lg border-2 border-gray-200 bg-black h-56">
+                        <video 
+                          ref={videoRef} 
+                          autoPlay 
+                          playsInline 
+                          muted 
+                          className="w-full h-full object-cover"
+                          onLoadedMetadata={() => console.log("Video metadata loaded")}
+                          onPlay={() => console.log("Video playing")}
+                          onError={(e) => console.error("Video error:", e)}
+                        />
                       </div>
                       {cameraError && (
                         <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-red-700 text-sm">
@@ -217,50 +216,44 @@ export default function IDVerificationPage() {
                       )}
                     </div>
                   ) : (
-                    <div className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 dark:bg-gray-800 flex items-center justify-center h-64">
-                      <div className="text-center space-y-4">
-                        <div className="h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-950/20 flex items-center justify-center mx-auto">
-                          <Camera className="h-8 w-8 text-blue-600" />
+                    <div className="rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 flex items-center justify-center h-56">
+                      <div className="text-center space-y-2.5">
+                        <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center mx-auto">
+                          <Camera className="h-6 w-6 text-[#4355f9]" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Camera Preview</h3>
-                          <p className="text-sm text-gray-600 dark:text-gray-400">Position your face in the frame</p>
+                          <h3 className="font-semibold text-gray-900 text-sm mb-0.5">Camera Preview</h3>
+                          <p className="text-xs text-gray-600">Position your face in the frame</p>
                         </div>
                       </div>
                     </div>
                   )}
 
-                  <div className="flex gap-3 mt-4">
+                  <div>
                     {!cameraActive && !cameraLoading ? (
-                      <Button onClick={startCamera} className="w-full gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700">
+                      <Button onClick={startCamera} className="w-full gap-2 h-10 bg-[#4355f9] hover:bg-[#3644d9] text-white font-semibold rounded-lg text-sm">
                         <Camera className="h-4 w-4" />
                         Start Camera
                       </Button>
                     ) : cameraLoading ? (
-                      <Button disabled className="w-full gap-2">
+                      <Button disabled className="w-full gap-2 h-10 text-sm">
                         <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
                         Starting Camera...
                       </Button>
                     ) : (
-                      <>
-                        <Button onClick={stopCamera} variant="outline" className="flex-1">
-                          Cancel
-                        </Button>
-                        <Button 
-                          onClick={capturePhoto} 
-                          className="flex-1 gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
-                        >
-                          <Camera className="h-4 w-4" />
-                          Capture Photo
-                        </Button>
-                      </>
+                      <Button 
+                        onClick={capturePhoto} 
+                        className="w-full gap-2 h-10 bg-[#4355f9] hover:bg-[#3644d9] text-white font-semibold rounded-lg text-sm"
+                      >
+                        <Camera className="h-4 w-4" />
+                        Capture Photo
+                      </Button>
                     )}
                   </div>
                 </div>
               ) : (
-                <div className="flex-1 flex flex-col">
-                  <div className="flex-1 relative overflow-hidden rounded-xl border-2 border-green-200 bg-black min-h-[300px]">
-                    <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-0 pointer-events-none" />
+                <div className="flex-1 flex flex-col justify-between">
+                  <div className="relative overflow-hidden rounded-lg border-2 border-gray-200 bg-black h-56">
                     {photoData && (
                       <img 
                         src={photoData} 
@@ -268,16 +261,13 @@ export default function IDVerificationPage() {
                         className="w-full h-full object-cover rounded-lg" 
                       />
                     )}
-                    <div className="absolute top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-sm font-medium">
-                      ✓ Captured
-                    </div>
                   </div>
-                  <div className="flex gap-3 mt-4">
-                    <Button onClick={retakePhoto} variant="outline" className="flex-1">
+                  <div className="flex gap-2.5">
+                    <Button onClick={retakePhoto} variant="outline" className="flex-1 h-10 border-2 border-gray-300 hover:bg-gray-50 font-semibold rounded-lg text-sm">
                       Retake Photo
                     </Button>
-                    <Button className="flex-1 gap-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700">
-                      <CheckCircle2 className="h-4 w-4" />
+                    <Button className="flex-1 gap-2 h-10 bg-[#1ba94c] hover:bg-[#159a3f] text-white font-semibold rounded-lg text-sm">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
                       Confirm Photo
                     </Button>
                   </div>
@@ -287,32 +277,24 @@ export default function IDVerificationPage() {
           </Card>
 
           {/* Right Section - ID Upload */}
-          <Card className="p-6 shadow-lg border-2 border-gray-200 dark:border-gray-700 h-fit">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-                <FileText className="h-4 w-4 text-white" />
+          <Card className="bg-white p-5 shadow-sm border border-gray-200 rounded-lg flex flex-col">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="h-8 w-8 rounded-lg bg-[#a435f0] flex items-center justify-center">
+                <FileText className="h-4.5 w-4.5 text-white" strokeWidth={2.5} />
               </div>
-              <div>
-                <h2 className="text-lg font-bold text-gray-900 dark:text-white">Government ID Upload</h2>
-                <p className="text-xs text-gray-600 dark:text-gray-400">Upload your government-issued ID (optional)</p>
+              <div className="flex-1">
+                <h2 className="text-sm font-bold text-gray-900">Government ID Upload</h2>
+                <p className="text-xs text-gray-600">Upload your government-issued ID (optional)</p>
               </div>
-              {idUploaded && (
-                <div className="ml-auto">
-                  <Badge className="bg-green-100 text-green-800 border-green-200">
-                    <CheckCircle2 className="h-3 w-3 mr-1" />
-                    Uploaded
-                  </Badge>
-                </div>
-              )}
             </div>
 
-            <div className="space-y-4">
-              <div className="space-y-4">
+            <div className="flex-1 flex flex-col">
+              <div className="flex-1 flex flex-col justify-between">
                 {/* Upload Area */}
-                <div className="h-64">
+                <div className="h-56 mb-3">
                   <input 
                     type="file" 
-                    accept="image/*" 
+                    accept="image/*,.pdf" 
                     onChange={handleIDUpload} 
                     className="hidden" 
                     id="id-upload" 
@@ -321,35 +303,32 @@ export default function IDVerificationPage() {
                     htmlFor="id-upload" 
                     className="cursor-pointer h-full block"
                   >
-                    <div className={`h-full rounded-xl border-2 border-dashed p-8 text-center flex flex-col items-center justify-center transition-all duration-200 ${
+                    <div className={`h-full rounded-lg border-2 border-dashed p-6 text-center flex flex-col items-center justify-center transition-all duration-200 ${
                       idUploaded 
-                        ? 'border-green-300 bg-green-50 dark:bg-green-950/20' 
-                        : 'border-gray-300 bg-gray-50 dark:bg-gray-800 hover:border-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/20'
+                        ? 'border-gray-300 bg-gray-50' 
+                        : 'border-gray-300 bg-gray-50 hover:border-[#a435f0] hover:bg-purple-50'
                     }`}>
                       {idUploaded ? (
-                        <div className="space-y-4">
-                          <div className="h-16 w-16 rounded-full bg-green-100 dark:bg-green-950/20 flex items-center justify-center mx-auto">
-                            <CheckCircle2 className="h-8 w-8 text-green-600" />
+                        <div className="space-y-2.5">
+                          <div className="h-12 w-12 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+                            <CheckCircle2 className="h-6 w-6 text-[#1ba94c]" />
                           </div>
                           <div>
-                            <h3 className="font-semibold text-green-800 dark:text-green-200 mb-2">ID Uploaded Successfully</h3>
-                            <p className="text-sm text-green-600 dark:text-green-400">{idFileName}</p>
+                            <h3 className="font-semibold text-gray-900 text-sm mb-0.5">ID Uploaded Successfully</h3>
+                            <p className="text-xs text-gray-600">{idFileName}</p>
                           </div>
-                          <Button variant="outline" size="sm" className="mt-4">
-                            Change File
-                          </Button>
                         </div>
                       ) : (
-                        <div className="space-y-4">
-                          <div className="h-16 w-16 rounded-full bg-purple-100 dark:bg-purple-950/20 flex items-center justify-center mx-auto">
-                            <Upload className="h-8 w-8 text-purple-600" />
+                        <div className="space-y-2.5">
+                          <div className="h-12 w-12 rounded-full bg-purple-100 flex items-center justify-center mx-auto">
+                            <Upload className="h-6 w-6 text-[#a435f0]" />
                           </div>
                           <div>
-                            <h3 className="font-semibold text-gray-900 dark:text-white mb-2">Upload Government ID</h3>
-                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                            <h3 className="font-semibold text-gray-900 text-sm mb-0.5">Upload Government ID</h3>
+                            <p className="text-xs text-gray-600 mb-2">
                               Click to browse or drag and drop your ID document
                             </p>
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                            <div className="text-xs text-gray-500">
                               Supported: PNG, JPG, PDF • Max size: 10MB
                             </div>
                           </div>
@@ -360,12 +339,14 @@ export default function IDVerificationPage() {
                 </div>
 
                 {/* Requirements */}
-                <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3">
-                  <div className="flex gap-2">
-                    <Eye className="h-4 w-4 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mt-auto">
+                  <div className="flex gap-2.5">
+                    <div className="h-4.5 w-4.5 rounded bg-[#4355f9] flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <Eye className="h-2.5 w-2.5 text-white" strokeWidth={2.5} />
+                    </div>
                     <div>
-                      <h4 className="font-medium text-blue-900 dark:text-blue-200 mb-1 text-sm">Verification Requirements</h4>
-                      <p className="text-xs text-blue-800 dark:text-blue-300">
+                      <h4 className="font-semibold text-gray-900 mb-0.5 text-xs">Verification Requirements</h4>
+                      <p className="text-xs text-gray-700">
                         Clear, well-lit face photo and readable, valid ID document
                       </p>
                     </div>
@@ -380,40 +361,27 @@ export default function IDVerificationPage() {
         <div className="mt-6 flex justify-between items-center">
           <Button 
             onClick={() => router.back()} 
-            variant="outline" 
-            className="gap-2"
+            variant="outline"
+            className="gap-2 h-10 px-5 bg-white hover:bg-gray-50 text-gray-900 border-2 border-gray-300 font-semibold rounded-lg text-sm"
           >
-            Back to Compatibility Check
+            <ArrowRight className="h-4 w-4 rotate-180" />
+            Back
           </Button>
           
-          <div className="flex items-center gap-4">
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-              {photoTaken || idUploaded ? (
-                <span className="text-green-600 font-medium">✓ Ready to continue</span>
-              ) : (
-                <span>Identity verification is optional</span>
-              )}
-            </div>
-            <div className="flex gap-3">
-              <Button 
-                onClick={handleContinue} 
-                variant="outline"
-                disabled={isLoading}
-                className="gap-2"
-              >
-                Skip Verification
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-              <Button 
-                onClick={handleContinue} 
-                disabled={isLoading}
-                className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-              >
-                {isLoading ? "Processing..." : "Continue to Consent"}
-                <ArrowRight className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
+          <Button 
+            onClick={handleContinue} 
+            disabled={isLoading}
+            style={{
+              backgroundColor: (photoTaken && idUploaded) ? '#1ba94c' : 'white',
+              color: (photoTaken && idUploaded) ? 'white' : '#111827',
+              borderWidth: (photoTaken && idUploaded) ? '0' : '2px',
+              borderColor: (photoTaken && idUploaded) ? 'transparent' : '#d1d5db'
+            }}
+            className="gap-2 h-10 px-7 font-semibold rounded-lg hover:opacity-90 transition-all text-sm"
+          >
+            {isLoading ? "Processing..." : "Continue"}
+            <ArrowRight className="h-4 w-4" />
+          </Button>
         </div>
       </div>
     </main>
