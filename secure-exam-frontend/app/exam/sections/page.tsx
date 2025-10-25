@@ -1,14 +1,145 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Code, BookOpen, FileText, Clock, CheckCircle, Terminal } from "lucide-react"
+import { Code, BookOpen, FileText, Clock, CheckCircle, Terminal, Loader2, RefreshCw } from "lucide-react"
 import { MonitoringOverlay } from "@/components/exam/monitoring-overlay"
 import { ViolationTracker } from "@/components/exam/violation-tracker"
+import { 
+  getCurrentExamId, 
+  getSectionQuestions,
+  areAllSectionsLoaded,
+  clearExamSession,
+  getExamSession,
+  saveExamSession 
+} from "@/lib/exam-session"
+import { getOrLoadSectionQuestions } from "@/lib/question-service"
+import { createLogger } from "@/lib/utils"
 
 export default function ExamSectionsPage() {
   const router = useRouter()
+  const [loadingStatus, setLoadingStatus] = useState<Record<string, boolean>>({})
+  const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({})
+  const [questionSources, setQuestionSources] = useState<Record<string, "api" | "mock" | "cache" | "ai">>({})
+  const [allLoaded, setAllLoaded] = useState(false)
+
+  // Preload all questions in parallel
+  useEffect(() => {
+    const examId = getCurrentExamId()
+    const logger = createLogger({ event: "sections-page-load", examId })
+    logger.info("Current exam ID")
+
+    // Check if already loaded
+    if (areAllSectionsLoaded()) {
+      logger.info("All questions already cached")
+      
+      // Update loading status for all cached sections
+      const sections = ["mcq1", "mcq2", "mcq3", "coding"]
+      sections.forEach(section => {
+        const cached = getSectionQuestions(section)
+        if (cached) {
+          setLoadingStatus(prev => ({ ...prev, [section]: true }))
+          setQuestionCounts(prev => ({ ...prev, [section]: cached.length }))
+          setQuestionSources(prev => ({ ...prev, [section]: "cache" }))
+        }
+      })
+      
+      setAllLoaded(true)
+      return
+    }
+
+    logger.info("Starting parallel question loading")
+    loadAllSections()
+  }, [])
+
+  const loadSection = async (section: string, retryAttempt: number = 0): Promise<void> => {
+    const logger = createLogger({ section, event: "load-section" })
+    const maxRetries = 3
+    
+    logger.info("Loading section", { attempt: retryAttempt + 1 })
+    setLoadingStatus(prev => ({ ...prev, [section]: false }))
+
+    try {
+      const result = await getOrLoadSectionQuestions(section, (questions, count) => {
+        // Progress callback - update UI
+        logger.info("Progress update", { count })
+        setQuestionCounts(prev => ({ ...prev, [section]: count }))
+        
+        // Enable section if we have minimum questions (80% of expected)
+        const expectedCount = sections.find(s => s.id === section)?.questions || 25
+        if (count >= expectedCount * 0.8) {
+          setLoadingStatus(prev => ({ ...prev, [section]: true }))
+        }
+      })
+
+      // Check if we got all expected questions
+      const expectedCount = sections.find(s => s.id === section)?.questions || 25
+      const gotAll = result.questions.length >= expectedCount
+      
+      // Final update
+      setLoadingStatus(prev => ({ ...prev, [section]: true }))
+      setQuestionCounts(prev => ({ ...prev, [section]: result.questions.length }))
+      setQuestionSources(prev => ({ ...prev, [section]: result.source }))
+      logger.info("Section loaded", { count: result.questions.length, source: result.source, complete: gotAll })
+      
+      // If incomplete and we haven't exceeded retries, try again automatically
+      if (!gotAll && retryAttempt < maxRetries && result.source !== "mock") {
+        const missing = expectedCount - result.questions.length
+        logger.info("Incomplete section, auto-retrying", { missing, attempt: retryAttempt + 1 })
+        
+        // Wait a bit before retrying
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        
+        // Retry loading
+        await loadSection(section, retryAttempt + 1)
+      }
+    } catch (error) {
+      logger.error("Failed to load section", { 
+        error: error instanceof Error ? error.message : String(error) 
+      })
+      
+      // Retry on error if we haven't exceeded max retries
+      if (retryAttempt < maxRetries) {
+        logger.info("Retrying after error", { attempt: retryAttempt + 1 })
+        await new Promise(resolve => setTimeout(resolve, 2000 * (retryAttempt + 1)))
+        await loadSection(section, retryAttempt + 1)
+      } else {
+        // Mark as failed after all retries
+        setLoadingStatus(prev => ({ ...prev, [section]: false }))
+      }
+    }
+  }
+
+  const loadAllSections = async () => {
+    const sections = ["mcq1", "mcq2", "mcq3", "coding"]
+    const logger = createLogger({ event: "load-all-sections" })
+
+    logger.info("Starting parallel loading")
+
+    // Load all sections in parallel
+    const promises = sections.map(async (section) => {
+      // Check cache first
+      const cached = getSectionQuestions(section)
+      if (cached) {
+        setLoadingStatus(prev => ({ ...prev, [section]: true }))
+        setQuestionCounts(prev => ({ ...prev, [section]: cached.length }))
+        setQuestionSources(prev => ({ ...prev, [section]: "cache" }))
+        return
+      }
+
+      // Load via question-service
+      await loadSection(section)
+    })
+
+    await Promise.all(promises)
+    setAllLoaded(true)
+    
+    if (process.env.NODE_ENV !== 'production') {
+      logger.info("All sections loaded")
+    }
+  }
 
   const sections = [
     {
@@ -57,6 +188,15 @@ export default function ExamSectionsPage() {
     router.push(`/exam/${sectionId}`)
   }
 
+  const handleClearCache = () => {
+    if (confirm("Clear all cached questions and reload? This will generate fresh questions.")) {
+      clearExamSession()
+      window.location.reload()
+    }
+  }
+
+
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800">
       {/* Header */}
@@ -66,10 +206,21 @@ export default function ExamSectionsPage() {
             <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center shadow-md">
               <span className="text-lg font-bold text-white">HP</span>
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="font-bold text-xl">Computer Science - Final Assessment</h1>
               <p className="text-sm text-muted-foreground">Select a section to begin your exam</p>
             </div>
+            {process.env.NODE_ENV !== 'production' && (
+              <Button
+                onClick={handleClearCache}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Clear Cache & Reload
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -119,12 +270,33 @@ export default function ExamSectionsPage() {
                     </div>
                   </div>
 
-                  <Button
-                    onClick={() => handleStartSection(section.id)}
-                    className={`w-full h-9 text-sm font-semibold bg-gradient-to-r ${section.color} hover:opacity-90 text-white shadow-md`}
-                  >
-                    Start {section.title}
-                  </Button>
+                  <div className="space-y-1">
+                    <Button
+                      onClick={() => handleStartSection(section.id)}
+                      disabled={!loadingStatus[section.id]}
+                      className={`w-full h-9 text-sm font-semibold bg-gradient-to-r ${section.color} hover:opacity-90 text-white shadow-md disabled:opacity-50`}
+                    >
+                      {!loadingStatus[section.id] ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          {questionCounts[section.id] ? `Generating ${questionCounts[section.id]}/${section.questions}...` : 'Loading...'}
+                        </>
+                      ) : (
+                        <>
+                          Start {section.title}
+                        </>
+                      )}
+                    </Button>
+                    
+                    {loadingStatus[section.id] && questionSources[section.id] && (
+                      <div className="text-[10px] text-center text-muted-foreground">
+                        {questionSources[section.id] === "api" && `✓ ${questionCounts[section.id]}/${section.questions} AI Generated`}
+                        {questionSources[section.id] === "ai" && `✓ ${questionCounts[section.id]}/${section.questions} AI Generated`}
+                        {questionSources[section.id] === "mock" && "⚠ Using Fallback"}
+                        {questionSources[section.id] === "cache" && `✓ ${questionCounts[section.id]}/${section.questions} Cached`}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </Card>
             )

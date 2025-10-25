@@ -10,7 +10,6 @@ interface CodeEditorProps {
 }
 
 export function CodeEditor({ value, onChange, language, placeholder }: CodeEditorProps) {
-  const editorRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const lineNumbersRef = useRef<HTMLDivElement>(null)
 
@@ -40,12 +39,28 @@ export function CodeEditor({ value, onChange, language, placeholder }: CodeEdito
       e.preventDefault()
       const start = e.currentTarget.selectionStart
       const end = e.currentTarget.selectionEnd
-      const newValue = value.substring(0, start) + '  ' + value.substring(end)
+      const spaces = language === 'python' ? '    ' : '  '
+      const newValue = value.substring(0, start) + spaces + value.substring(end)
       onChange(newValue)
       
       setTimeout(() => {
         if (textareaRef.current) {
-          textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + 2
+          textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + spaces.length
+        }
+      }, 0)
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const start = e.currentTarget.selectionStart
+      const lines = value.substring(0, start).split('\n')
+      const currentLine = lines[lines.length - 1]
+      const indent = currentLine.match(/^\s*/)?.[0] || ''
+      
+      const newValue = value.substring(0, start) + '\n' + indent + value.substring(start)
+      onChange(newValue)
+      
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.selectionStart = textareaRef.current.selectionEnd = start + 1 + indent.length
         }
       }, 0)
     }
@@ -71,7 +86,7 @@ export function CodeEditor({ value, onChange, language, placeholder }: CodeEdito
         spellCheck={false}
         className="flex-1 p-4 bg-[#1e1e1e] text-[#d4d4d4] font-mono text-sm focus:outline-none resize-none leading-6 placeholder-[#6a6a6a]"
         style={{
-          tabSize: 2,
+          tabSize: language === 'python' ? 4 : 2,
           lineHeight: '1.5rem',
         }}
       />
