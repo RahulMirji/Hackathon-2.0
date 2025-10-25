@@ -2,47 +2,54 @@
 
 import { Shield, Eye, Brain, CheckCircle, Target, Zap, Users, Award, TrendingUp, Lock, Sparkles, ArrowRight } from "lucide-react"
 import Image from "next/image"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { ThreeDCarousel, TeamMember } from "@/components/ui/three-d-carousel"
+import { useRouter } from "next/navigation"
 
 export function AboutSectionRedesigned() {
+    const router = useRouter()
+    
+    const handleNavigation = (path: string) => {
+        router.push(path)
+    }
     const teamMembers: TeamMember[] = [
         {
             id: 1,
-            name: "Rajesh Kumar",
-            role: "Project Lead & Full Stack Architect",
-            imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Rajesh",
+            name: "Rahul Mirji",
+            role: "Team Leader | AI & Machine Learning",
+            imageUrl: "/rahul.jpg",
             isLeader: true,
-            bio: "10+ years in EdTech, specializing in secure platforms and scalable architecture. Leading the team with expertise in full-stack development and a passion for creating innovative EdTech solutions."
+            bio: "HKBK College of Engineering\ndevprahulmirji@gmail.com"
         },
         {
             id: 2,
-            name: "Priya Sharma",
-            role: "Frontend Developer",
-            imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Priya",
-            bio: "React & Next.js expert with a strong focus on user experience and modern web technologies. Passionate about creating intuitive and performant interfaces."
+            name: "Samarth Jadhav",
+            role: "Team Member | AI & Machine Learning",
+            imageUrl: "/Sam-profile 1.png",
+            bio: "Presidency University\nsamarthjadhavsj121@gmail.com"
         },
         {
             id: 3,
-            name: "Arjun Patel",
-            role: "Backend Developer",
-            imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Arjun",
-            bio: "Scalable systems & API architecture specialist with expertise in building robust backend solutions. Focused on performance and security."
+            name: "Praveen Mirji",
+            role: "Team Member | AI & Machine Learning",
+            imageUrl: "/praveen.jpg",
+            bio: "BMS College of Engineering\npraveenmirji866@gmail.com"
         },
         {
             id: 4,
-            name: "Sneha Reddy",
-            role: "UI/UX Designer",
-            imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sneha",
-            bio: "Human-centered design advocate creating beautiful and accessible user experiences. Bridging the gap between design and development."
+            name: "Imtiyaz Akiwat",
+            role: "Team Member | Computer Science",
+            imageUrl: "/imtiyaz.jpg",
+            bio: "SSMS College Athani\nimtiyazakiwat0@gmail.com"
         },
         {
             id: 5,
-            name: "Vikram Singh",
-            role: "AI/ML Engineer",
-            imageUrl: "https://api.dicebear.com/7.x/avataaars/svg?seed=Vikram",
-            bio: "Computer vision & behavioral analysis expert specializing in AI-powered proctoring solutions. Pushing the boundaries of machine learning."
+            name: "Abid N G",
+            role: "Team Member | AI & Data Science",
+            imageUrl: "/abid.jpg",
+            bio: "Don Bosco Institute of Technology\nabidgogi93@gmail.com"
         },
     ]
 
@@ -275,8 +282,8 @@ export function AboutSectionRedesigned() {
                             Meet the Minds Behind the Platform
                         </h2>
                         <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-                            A passionate team of engineers, designers, and innovators dedicated to
-                            transforming online education
+                            Led by our dedicated team leader and supported by passionate engineers and innovators
+                            committed to transforming online education
                         </p>
                     </div>
 
@@ -322,11 +329,17 @@ export function AboutSectionRedesigned() {
                             reliable online examinations with our platform.
                         </p>
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                            <button className="px-8 py-4 bg-white text-blue-600 rounded-lg font-semibold hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center gap-2">
+                            <Link 
+                                href="/exam/compatibility-check"
+                                className="px-8 py-4 bg-white text-blue-600 rounded-lg font-semibold hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center gap-2 cursor-pointer"
+                            >
                                 Get Started Today
                                 <ArrowRight className="w-5 h-5" />
-                            </button>
-                            <button className="px-8 py-4 bg-white/10 text-white border-2 border-white rounded-lg font-semibold hover:bg-white/20 transition-all">
+                            </Link>
+                            <button 
+                                onClick={() => handleNavigation('/exam/compatibility-check')}
+                                className="px-8 py-4 bg-white/10 text-white border-2 border-white rounded-lg font-semibold hover:bg-white/20 transition-all cursor-pointer flex items-center justify-center"
+                            >
                                 Schedule a Demo
                             </button>
                         </div>

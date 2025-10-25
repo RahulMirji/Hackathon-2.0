@@ -104,15 +104,15 @@ export function ThreeDCarousel({
                             <Card
                                 className={`overflow-hidden bg-white border-2 shadow-xl hover:shadow-2xl flex flex-col h-[${cardHeight}px]`}
                             >
-                                <div className="relative bg-gradient-to-br from-blue-600 to-cyan-500 p-8 flex items-center justify-center h-64 overflow-hidden">
+                                <div className="relative bg-gradient-to-br from-blue-600 to-cyan-500 p-8 flex items-center justify-center h-64 overflow-visible">
                                     <div className="absolute inset-0 bg-black/20" />
-                                    <div className="relative z-10 w-48 h-48 rounded-full overflow-hidden border-4 border-white shadow-2xl">
+                                    <div className="relative z-10 w-52 h-52 rounded-full overflow-hidden border-4 border-white shadow-2xl bg-white flex items-center justify-center">
                                         <Image
                                             src={member.imageUrl}
                                             alt={member.name}
-                                            width={192}
-                                            height={192}
-                                            className="object-cover w-full h-full"
+                                            width={208}
+                                            height={208}
+                                            className="object-cover w-full h-full scale-110"
                                         />
                                     </div>
                                     {member.isLeader && (
@@ -122,14 +122,17 @@ export function ThreeDCarousel({
                                     )}
                                 </div>
                                 <CardContent className="p-8 flex flex-col flex-grow text-center">
-                                    <h3 className="text-2xl font-bold mb-2 text-slate-900">
+                                    <h3 className="text-2xl font-bold mb-3 text-slate-900">
                                         {member.name}
                                     </h3>
-                                    <p className="text-blue-600 text-base font-semibold mb-4">
+                                    <p className="text-blue-600 text-base font-semibold mb-2">
                                         {member.role}
                                     </p>
-                                    <p className="text-slate-600 text-sm leading-relaxed flex-grow">
-                                        {member.bio}
+                                    <p className="text-slate-600 text-sm mb-2">
+                                        {member.bio.split('\n')[0]}
+                                    </p>
+                                    <p className="text-slate-500 text-sm flex-grow">
+                                        {member.bio.split('\n')[1] || member.bio}
                                     </p>
                                     {member.isLeader && (
                                         <div className="flex gap-3 justify-center mt-6">
