@@ -6,30 +6,45 @@ import Image from "next/image"
 export function AboutSection() {
     const teamMembers = [
         {
-            name: "Rajesh Kumar",
-            role: "Project Lead & Full Stack Architect",
-            image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Rajesh",
+            name: "Rahul Mirji",
+            role: "Team Leader",
+            department: "Artificial Intelligence and Machine Learning",
+            email: "devprahulmirji@gmail.com",
+            college: "HKBK College of Engineering",
+            image: "/rahul.jpg",
             isLeader: true,
         },
         {
-            name: "Priya Sharma",
-            role: "Frontend Developer",
-            image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Priya",
+            name: "Praveen Mirji",
+            role: "Team Member",
+            department: "Artificial Intelligence and Machine Learning",
+            email: "praveenmirji866@gmail.com",
+            college: "BMS College of Engineering",
+            image: "/praveen.jpg",
         },
         {
-            name: "Arjun Patel",
-            role: "Backend Developer",
-            image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Arjun",
+            name: "Samarth A Jadhav",
+            role: "Team Member",
+            department: "Artificial Intelligence and Machine Learning",
+            email: "samarthjadhavsj121@gmail.com",
+            college: "Presidency University",
+            image: "/Sam-profile 1.png",
         },
         {
-            name: "Sneha Reddy",
-            role: "UI/UX Designer",
-            image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Sneha",
+            name: "Imtiyaz Akiwat",
+            role: "Team Member",
+            department: "BSE in Computer Sciences",
+            email: "imtiyazakiwat0@gmail.com",
+            college: "SSMS College",
+            image: "/imtiyaz.jpg",
         },
         {
-            name: "Vikram Singh",
-            role: "AI/ML Engineer",
-            image: "https://api.dicebear.com/7.x/avataaars/svg?seed=Vikram",
+            name: "Abid N G",
+            role: "Team Member",
+            department: "Artificial Intelligence and Data Science",
+            email: "abidgogi93@gmail.com",
+            college: "Don Bosco Institute of Technology",
+            image: "/abid.jpg",
         },
     ]
 
@@ -184,48 +199,58 @@ export function AboutSection() {
                     </div>
 
                     {/* Team Leader - Featured */}
-                    <div className="mb-20">
-                        <div className="max-w-2xl mx-auto bg-white/50 backdrop-blur-sm rounded-3xl p-12 border border-slate-200 shadow-xl text-center">
-                            <div className="relative inline-block mb-6">
-                                <div className="w-40 h-40 rounded-2xl overflow-hidden border-4 border-slate-900 shadow-2xl">
+                    <div className="mb-16">
+                        <div className="max-w-xl mx-auto bg-white/50 backdrop-blur-sm rounded-2xl p-8 border border-slate-200 shadow-xl text-center">
+                            <div className="relative inline-block mb-5">
+                                <div className="w-32 h-32 rounded-2xl overflow-hidden border-4 border-slate-900 shadow-xl">
                                     <Image
                                         src={teamMembers[0].image}
                                         alt={teamMembers[0].name}
-                                        width={160}
-                                        height={160}
+                                        width={128}
+                                        height={128}
                                         className="object-cover w-full h-full"
                                     />
                                 </div>
-                                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white px-6 py-2 rounded-full text-sm font-bold shadow-xl whitespace-nowrap">
+                                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-gradient-to-r from-blue-600 to-cyan-500 text-white px-4 py-1.5 rounded-full text-xs font-bold shadow-lg whitespace-nowrap">
                                     Team Leader
                                 </div>
                             </div>
-                            <h3 className="text-3xl font-bold mb-2 text-slate-900">{teamMembers[0].name}</h3>
-                            <p className="text-xl text-slate-600 font-semibold mb-4">{teamMembers[0].role}</p>
-                            <p className="text-slate-600 max-w-lg mx-auto">
-                                Leading the team with expertise in full-stack development and a passion for
-                                creating secure, scalable EdTech solutions.
-                            </p>
+                            <h3 className="text-2xl font-bold mb-2 text-slate-900">{teamMembers[0].name}</h3>
+                            <p className="text-base text-slate-600 font-semibold mb-2">{teamMembers[0].role}</p>
+                            <p className="text-sm text-slate-600 mb-2">{teamMembers[0].department}</p>
+                            <p className="text-sm text-slate-500 mb-2">{teamMembers[0].email}</p>
+                            <p className="text-sm text-slate-500 font-medium">{teamMembers[0].college}</p>
                         </div>
                     </div>
 
                     {/* Other Team Members */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-8 md:gap-12">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {teamMembers.slice(1).map((member, index) => (
                             <div key={index} className="text-center group">
-                                <div className="relative mb-6">
-                                    <div className="w-32 h-32 md:w-40 md:h-40 mx-auto rounded-2xl overflow-hidden border-4 border-slate-200 group-hover:border-slate-900 transition-all duration-300 shadow-lg group-hover:shadow-2xl group-hover:scale-105">
-                                        <Image
-                                            src={member.image}
-                                            alt={member.name}
-                                            width={160}
-                                            height={160}
-                                            className="object-cover w-full h-full"
-                                        />
+                                <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-5 border border-slate-200 hover:shadow-xl transition-all duration-300 h-full">
+                                    <div className="relative mb-4">
+                                        <div className={`w-28 h-28 mx-auto rounded-2xl overflow-hidden border-4 border-slate-200 group-hover:border-slate-900 transition-all duration-300 shadow-lg ${member.name === "Imtiyaz Akiwat" ? "bg-slate-100" : ""}`}>
+                                            <Image
+                                                src={member.image}
+                                                alt={member.name}
+                                                width={112}
+                                                height={112}
+                                                className={member.name === "Imtiyaz Akiwat" ? "object-contain w-full h-full" : "object-cover w-full h-full"}
+                                            />
+                                        </div>
                                     </div>
+                                    <h4 className="font-bold text-base mb-1.5 text-slate-900">{member.name}</h4>
+                                    <p className="text-xs text-slate-600 mb-2">{member.role}</p>
+                                    {member.department && (
+                                        <p className="text-xs text-slate-500 mb-1.5 leading-tight">{member.department}</p>
+                                    )}
+                                    {member.email && (
+                                        <p className="text-xs text-slate-500 mb-1.5 break-all">{member.email}</p>
+                                    )}
+                                    {member.college && (
+                                        <p className="text-xs text-slate-500 font-medium leading-tight">{member.college}</p>
+                                    )}
                                 </div>
-                                <h4 className="font-bold text-lg md:text-xl mb-2 text-slate-900">{member.name}</h4>
-                                <p className="text-sm md:text-base text-slate-600">{member.role}</p>
                             </div>
                         ))}
                     </div>
