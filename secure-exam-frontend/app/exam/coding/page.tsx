@@ -100,7 +100,7 @@ export default function CodingExamPage() {
   }
 
   const handleSubmit = () => {
-    router.push("/exam/sections")
+    router.push("/exam/submission")
   }
 
   return (
