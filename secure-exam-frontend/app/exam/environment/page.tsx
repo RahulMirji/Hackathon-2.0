@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -14,7 +14,7 @@ import { getQuestionsBySection, getSectionInfo } from "@/lib/question-banks"
 
 type QuestionStatus = "not-visited" | "not-answered" | "answered" | "marked-review" | "answered-marked"
 
-export default function ExamEnvironmentPage() {
+function ExamEnvironmentContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const section = searchParams.get("section") || "mcq1"
@@ -338,5 +338,13 @@ export default function ExamEnvironmentPage() {
         </div>
       </div>
     </main>
+  )
+}
+
+export default function ExamEnvironmentPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ExamEnvironmentContent />
+    </Suspense>
   )
 }
