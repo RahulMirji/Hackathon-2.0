@@ -9,7 +9,7 @@ export function cn(...inputs: ClassValue[]) {
 export const RETRY_CONFIG = {
   MAX_RETRIES: 2,
   MIN_QUESTIONS_TO_START: 3,
-  TIMEOUT_MS: 15000,
+  TIMEOUT_MS: 60000, // Increased to 60 seconds for AI API calls
   INITIAL_BACKOFF_MS: 1000,
 } as const
 

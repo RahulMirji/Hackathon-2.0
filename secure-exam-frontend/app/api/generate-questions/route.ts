@@ -57,7 +57,7 @@ function normalizeTitle(title: string): string {
 function deduplicateQuestions(questions: any[]): any[] {
   const seen = new Set<string>()
   const unique: any[] = []
-  
+
   for (const q of questions) {
     const normalized = normalizeTitle(q.title || q.text || '')
     if (!seen.has(normalized)) {
@@ -65,20 +65,20 @@ function deduplicateQuestions(questions: any[]): any[] {
       unique.push(q)
     }
   }
-  
+
   return unique
 }
 
 export async function POST(request: NextRequest) {
   const requestId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
   const logger = createLogger({ requestId })
-  
+
   logger.info("POST /api/generate-questions called")
-  
+
   try {
     const body = await request.json()
     const { section = "coding", count = 25, retryAttempt = 0 } = body
-    
+
     logger.info("Request received", { section, count, retryAttempt })
 
     let prompt = ""
@@ -88,11 +88,11 @@ export async function POST(request: NextRequest) {
     if (section === "coding") {
       temperature = 0.7
       useStreaming = false // Disable streaming for coding to get stable JSON
-      
+
       if (process.env.NODE_ENV !== 'production') {
         logger.info("Generating coding questions", { temperature, streaming: useStreaming })
       }
-      
+
       prompt = `Generate EXACTLY ${count} coding problems in JSON format.
 
 CRITICAL RULES FOR TEST CASES:
@@ -156,17 +156,8 @@ GENERATE ${count} UNIQUE CODING PROBLEMS:
 - Maximum Product
 - Valid Anagram
 
-✅ GENERATE THESE INSTEAD:
-1. Find second largest element in array
-2. Check if array is sorted
-3. Find first non-repeating character
-4. Calculate factorial
-5. Check if number is prime
-6. Find GCD of two numbers
-7. Convert decimal to binary
-8. Find longest word in string
-9. Calculate power (x^n)
-10. Check if two strings are rotations
+✅ GENERATE randoms questions each time  INSTEAD:
+
 
 Return JSON array with ${count} DIFFERENT problems.
 
@@ -198,27 +189,31 @@ Return ONLY valid JSON array starting with [ and ending with ]. No markdown, no 
     } else if (section === "mcq1") {
       temperature = 0.7
       useStreaming = false
-      
-      prompt = `Generate ${count} General & Technical multiple choice questions in JSON format. Include topics like:
-- General knowledge
-- Basic science
-- Technology fundamentals
-- Mathematics
-- Logical reasoning
 
-Each question should have:
-- id: number (1, 2, etc.)
-- text: string (the question)
-- options: array of 4 strings (A, B, C, D)
-- correctAnswer: string (the correct option text)
+      prompt = `Generate EXACTLY ${count} General & Technical multiple choice questions in JSON format.
+
+CRITICAL REQUIREMENTS:
+1. Generate EXACTLY ${count} questions - no more, no less
+2. Number questions sequentially starting from 1
+3. Each question MUST be complete with all required fields
+4. ALL questions MUST be unique and different
+
+TOPICS TO COVER:
+- General knowledge (geography, history, current affairs)
+- Basic science (physics, chemistry, biology)
+- Technology fundamentals (computers, internet, gadgets)
+- Mathematics (arithmetic, algebra, geometry)
+- Logical reasoning (puzzles, patterns, deduction)
+
+REQUIRED FIELDS FOR EACH QUESTION:
+- id: number (sequential: 1, 2, 3, ...)
+- text: string (clear, complete question)
+- options: array of exactly 4 strings
+- correctAnswer: string (must match one of the options exactly)
 - type: "multiple-choice"
-- category: string (e.g., "General Knowledge", "Science", "Technology")
+- category: string (e.g., "General Knowledge", "Science", "Technology", "Mathematics", "Logic")
 
-ALL QUESTIONS MUST BE UNIQUE. Use seed: ${Date.now()}_${Math.random()}
-
-Return ONLY valid JSON array, no markdown.
-
-Example:
+EXAMPLE FORMAT (DO NOT COPY - GENERATE NEW QUESTIONS):
 [
   {
     "id": 1,
@@ -227,34 +222,52 @@ Example:
     "correctAnswer": "Paris",
     "type": "multiple-choice",
     "category": "General Knowledge"
+  },
+  {
+    "id": 2,
+    "text": "Which planet is known as the Red Planet?",
+    "options": ["Venus", "Mars", "Jupiter", "Saturn"],
+    "correctAnswer": "Mars",
+    "type": "multiple-choice",
+    "category": "Science"
   }
-]`
+]
+
+Generate ${count} COMPLETE questions with variety across all topics.
+Use random seed: ${Date.now()}_${Math.random()}
+
+Return ONLY valid JSON array starting with [ and ending with ]. No markdown, no explanations, no incomplete questions.`
     } else if (section === "mcq2") {
       temperature = 0.7
       useStreaming = false
-      
-      prompt = `Generate ${count} Coding & Programming multiple choice questions in JSON format. Include topics like:
-- Data structures (arrays, linked lists, trees, graphs)
-- Algorithms (sorting, searching, dynamic programming)
-- Time complexity (Big O notation)
-- Programming concepts (OOP, recursion, etc.)
-- Code output prediction
-- Debugging
 
-Each question should have:
-- id: number
-- text: string (the question, can include code snippets)
-- options: array of 4 strings
-- correctAnswer: string
+      prompt = `Generate EXACTLY ${count} Coding & Programming multiple choice questions in JSON format.
+
+CRITICAL REQUIREMENTS:
+1. Generate EXACTLY ${count} questions - no more, no less
+2. Number questions sequentially starting from 1
+3. Each question MUST be complete with all required fields
+4. ALL questions MUST be unique and different
+
+TOPICS TO COVER:
+- Data structures (arrays, linked lists, stacks, queues, trees, graphs, hash tables)
+- Algorithms (sorting, searching, recursion, dynamic programming, greedy)
+- Time complexity (Big O notation analysis)
+- Programming concepts (OOP, inheritance, polymorphism, encapsulation)
+- Code output prediction (what will this code print?)
+- Debugging (find the error in code)
+- Language features (Python, JavaScript, Java, C++)
+
+REQUIRED FIELDS FOR EACH QUESTION:
+- id: number (sequential: 1, 2, 3, ...)
+- text: string (clear, complete question)
+- options: array of exactly 4 strings
+- correctAnswer: string (must match one of the options exactly)
 - type: "multiple-choice"
-- category: string (e.g., "Data Structures", "Algorithms", "Code Output")
-- codeSnippet: string (optional, if showing code)
+- category: string (e.g., "Data Structures", "Algorithms", "Time Complexity", "Code Output")
+- codeSnippet: string (optional, use "" if no code)
 
-ALL QUESTIONS MUST BE UNIQUE. Use seed: ${Date.now()}_${Math.random()}
-
-Return ONLY valid JSON array, no markdown.
-
-Example:
+EXAMPLE FORMAT (DO NOT COPY - GENERATE NEW QUESTIONS):
 [
   {
     "id": 1,
@@ -264,32 +277,51 @@ Example:
     "type": "multiple-choice",
     "category": "Algorithms",
     "codeSnippet": ""
+  },
+  {
+    "id": 2,
+    "text": "What will be the output of this code?",
+    "options": ["5", "10", "15", "Error"],
+    "correctAnswer": "10",
+    "type": "multiple-choice",
+    "category": "Code Output",
+    "codeSnippet": "x = 5\\nprint(x * 2)"
   }
-]`
+]
+
+Generate ${count} COMPLETE questions with variety across all topics.
+Use random seed: ${Date.now()}_${Math.random()}
+
+Return ONLY valid JSON array starting with [ and ending with ]. No markdown, no explanations, no incomplete questions.`
     } else if (section === "mcq3") {
       temperature = 0.7
       useStreaming = false
-      
-      prompt = `Generate ${count} English Language multiple choice questions in JSON format. Include topics like:
-- Grammar (tenses, articles, prepositions)
-- Vocabulary (synonyms, antonyms)
-- Sentence correction
-- Reading comprehension
-- Parts of speech
 
-Each question should have:
-- id: number
-- text: string
-- options: array of 4 strings
-- correctAnswer: string
+      prompt = `Generate EXACTLY ${count} English Language multiple choice questions in JSON format.
+
+CRITICAL REQUIREMENTS:
+1. Generate EXACTLY ${count} questions - no more, no less
+2. Number questions sequentially starting from 1
+3. Each question MUST be complete with all required fields
+4. ALL questions MUST be unique and different
+
+TOPICS TO COVER:
+- Grammar (tenses, articles, prepositions, subject-verb agreement)
+- Vocabulary (synonyms, antonyms, word meanings)
+- Sentence correction (identify errors, choose correct form)
+- Reading comprehension (understand passages)
+- Parts of speech (nouns, verbs, adjectives, adverbs)
+- Idioms and phrases
+
+REQUIRED FIELDS FOR EACH QUESTION:
+- id: number (sequential: 1, 2, 3, ...)
+- text: string (clear, complete question)
+- options: array of exactly 4 strings
+- correctAnswer: string (must match one of the options exactly)
 - type: "multiple-choice"
-- category: string (e.g., "Grammar", "Vocabulary", "Comprehension")
+- category: string (e.g., "Grammar", "Vocabulary", "Comprehension", "Sentence Correction")
 
-ALL QUESTIONS MUST BE UNIQUE. Use seed: ${Date.now()}_${Math.random()}
-
-Return ONLY valid JSON array, no markdown.
-
-Example:
+EXAMPLE FORMAT (DO NOT COPY - GENERATE NEW QUESTIONS):
 [
   {
     "id": 1,
@@ -298,19 +330,32 @@ Example:
     "correctAnswer": "Joyful",
     "type": "multiple-choice",
     "category": "Vocabulary"
+  },
+  {
+    "id": 2,
+    "text": "Which sentence is grammatically correct?",
+    "options": ["She don't like apples", "She doesn't likes apples", "She doesn't like apples", "She not like apples"],
+    "correctAnswer": "She doesn't like apples",
+    "type": "multiple-choice",
+    "category": "Grammar"
   }
-]`
+]
+
+Generate ${count} COMPLETE questions with variety across all topics.
+Use random seed: ${Date.now()}_${Math.random()}
+
+Return ONLY valid JSON array starting with [ and ending with ]. No markdown, no explanations, no incomplete questions.`
     }
 
     if (process.env.NODE_ENV !== 'production') {
-      logger.info("Calling AI API", { 
+      logger.info("Calling AI API", {
         urlLength: API_URL.length,
         modelLength: MODEL.length,
         temperature,
         streaming: useStreaming
       })
     }
-    
+
     const response = await fetch(API_URL, {
       method: "POST",
       headers: {
@@ -323,7 +368,18 @@ Example:
         messages: [
           {
             role: "system",
-            content: "You are a creative question generator. Generate completely unique and varied problems. Return ONLY valid JSON array, no markdown, no explanations."
+            content: `You are a professional exam question generator. Your task is to generate COMPLETE, VALID questions in JSON format.
+
+CRITICAL RULES:
+1. Generate the EXACT number of questions requested
+2. Each question MUST have ALL required fields
+3. Return ONLY a valid JSON array - no markdown, no explanations, no text before or after
+4. Start with [ and end with ]
+5. Every question must be complete - no partial or incomplete questions
+6. All IDs must be sequential starting from 1
+7. All questions must be unique and different from each other
+
+If you cannot generate the full number of questions, generate as many complete questions as possible, but DO NOT include incomplete questions.`
           },
           {
             role: "user",
@@ -354,31 +410,31 @@ Example:
         logger.info("Processing non-streaming response")
       }
       const text = await response.text()
-      
+
       try {
         const data = JSON.parse(text)
         const content = data.choices?.[0]?.message?.content || ""
-        
+
         if (process.env.NODE_ENV !== 'production') {
           logger.info("Content extracted", { contentLength: content.length })
         }
-        
+
         // Clean and parse the content - strict checks
         let jsonStr = content.trim()
-        
+
         // Remove markdown fences
         if (jsonStr.startsWith("```json")) {
           jsonStr = jsonStr.replace(/```json\n?/g, "").replace(/```\n?/g, "")
         } else if (jsonStr.startsWith("```")) {
           jsonStr = jsonStr.replace(/```\n?/g, "")
         }
-        
+
         jsonStr = jsonStr.trim()
-        
+
         // Strict validation: must start with [ and end with ]
         if (!jsonStr.startsWith("[") || !jsonStr.endsWith("]")) {
           if (process.env.NODE_ENV !== 'production') {
-            logger.error("Invalid JSON format", { 
+            logger.error("Invalid JSON format", {
               startsWithBracket: jsonStr.startsWith("["),
               endsWithBracket: jsonStr.endsWith("]"),
               preview: jsonStr.substring(0, 100)
@@ -386,24 +442,24 @@ Example:
           }
           throw new Error("Response does not contain valid JSON array")
         }
-        
+
         let questions = JSON.parse(jsonStr)
-        
+
         if (!Array.isArray(questions)) {
           throw new Error("Parsed result is not an array")
         }
-        
+
         // Deduplicate questions
         const originalCount = questions.length
         questions = deduplicateQuestions(questions)
         if (questions.length < originalCount && process.env.NODE_ENV !== 'production') {
           logger.warn("Duplicates removed", { original: originalCount, unique: questions.length })
         }
-        
+
         if (process.env.NODE_ENV !== 'production') {
           logger.info("Successfully parsed questions", { count: questions.length })
         }
-        
+
         // Validate questions based on section type
         if (section !== "coding") {
           const errors: string[] = []
@@ -411,10 +467,10 @@ Example:
             const error = validateMCQQuestion(q, idx + 1)
             if (error) errors.push(error)
           })
-          
+
           if (errors.length > 0) {
             if (process.env.NODE_ENV !== 'production') {
-              logger.error("Validation failed", { errorCount: errors.length })
+              logger.error("Validation failed", { errorCount: errors.length, errors: errors.slice(0, 5) })
             }
             const errorEvent: SSEErrorEvent = {
               type: "error",
@@ -422,14 +478,14 @@ Example:
               details: errors.slice(0, 3).join("; "), // Only first 3 errors
               shouldRetry: retryAttempt < 2
             }
-            
+
             const stream = new ReadableStream({
               start(controller) {
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`))
                 controller.close()
               }
             })
-            
+
             return new Response(stream, {
               headers: {
                 "Content-Type": "text/event-stream",
@@ -438,17 +494,54 @@ Example:
               },
             })
           }
-          
+
+          // Check if we got the expected count
+          const expectedCount = section === "mcq3" ? 10 : section === "coding" ? 2 : 25
+          if (questions.length < expectedCount) {
+            if (process.env.NODE_ENV !== 'production') {
+              logger.warn("Incomplete question set", { 
+                expected: expectedCount, 
+                received: questions.length,
+                section 
+              })
+            }
+            
+            // If we got at least 80% of questions, proceed (accept 20/25, 8/10, etc.)
+            // This is acceptable since we can generate more later
+            if (questions.length < expectedCount * 0.8) {
+              const errorEvent: SSEErrorEvent = {
+                type: "error",
+                message: `Incomplete response: only ${questions.length}/${expectedCount} questions generated`,
+                shouldRetry: retryAttempt < 2
+              }
+
+              const stream = new ReadableStream({
+                start(controller) {
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`))
+                  controller.close()
+                }
+              })
+
+              return new Response(stream, {
+                headers: {
+                  "Content-Type": "text/event-stream",
+                  "Cache-Control": "no-cache",
+                  "Connection": "keep-alive",
+                },
+              })
+            }
+          }
+
           if (process.env.NODE_ENV !== 'production') {
-            logger.info("Validation passed", { count: questions.length })
+            logger.info("Validation passed", { count: questions.length, expected: expectedCount })
           }
         }
-        
+
         const completeEvent: SSECompleteEvent = {
           type: "complete",
           questions
         }
-        
+
         const stream = new ReadableStream({
           start(controller) {
             // Send requestId first
@@ -458,7 +551,7 @@ Example:
             controller.close()
           }
         })
-        
+
         return new Response(stream, {
           headers: {
             "Content-Type": "text/event-stream",
@@ -471,21 +564,21 @@ Example:
         if (process.env.NODE_ENV !== 'production') {
           logger.error("Failed to parse response", { error: errorMsg })
         }
-        
+
         const errorEvent: SSEErrorEvent = {
           type: "error",
           message: "Failed to parse response",
           details: errorMsg,
           shouldRetry: retryAttempt < 2
         }
-        
+
         const stream = new ReadableStream({
           start(controller) {
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`))
             controller.close()
           }
         })
-        
+
         return new Response(stream, {
           headers: {
             "Content-Type": "text/event-stream",
@@ -521,7 +614,7 @@ Example:
         try {
           while (true) {
             const { done, value } = await reader.read()
-            
+
             if (done) {
               logger.info("Stream complete")
               break
@@ -538,10 +631,10 @@ Example:
                 try {
                   const parsed = JSON.parse(data)
                   const content = parsed.choices?.[0]?.delta?.content || ""
-                  
+
                   if (content) {
                     buffer += content
-                    
+
                     // Try to parse partial JSON periodically
                     if (buffer.length % 500 === 0) {
                       try {
@@ -549,19 +642,19 @@ Example:
                         if (jsonStr.startsWith("```json")) {
                           jsonStr = jsonStr.replace(/```json\n?/g, "").replace(/```\n?/g, "")
                         }
-                        
+
                         const jsonMatch = jsonStr.match(/\[[\s\S]*?\{[\s\S]*?\}[\s\S]*?\]/)
                         if (jsonMatch) {
                           const questions = JSON.parse(jsonMatch[0])
                           if (Array.isArray(questions) && questions.length > partialQuestions.length) {
                             partialQuestions = questions
-                            
+
                             const partialEvent: SSEPartialEvent = {
                               type: "partial",
                               questions: partialQuestions,
                               count: partialQuestions.length
                             }
-                            
+
                             controller.enqueue(encoder.encode(`data: ${JSON.stringify(partialEvent)}\n\n`))
                           }
                         }
@@ -590,42 +683,42 @@ Example:
             }
 
             let questions = JSON.parse(jsonStr)
-            
+
             // Deduplicate
             questions = deduplicateQuestions(questions)
-            
+
             logger.info("Successfully parsed final questions", { count: questions.length })
-            
+
             const completeEvent: SSECompleteEvent = {
               type: "complete",
               questions
             }
-            
+
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(completeEvent)}\n\n`))
           } catch (e) {
             logger.error("Failed to parse final JSON", { error: e instanceof Error ? e.message : String(e) })
-            
+
             const errorEvent: SSEErrorEvent = {
               type: "error",
               message: "Failed to parse JSON",
               details: e instanceof Error ? e.message : String(e),
               shouldRetry: retryAttempt < 2
             }
-            
+
             controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`))
           }
 
           controller.close()
         } catch (error) {
           logger.error("Stream error", { error: error instanceof Error ? error.message : String(error) })
-          
+
           const errorEvent: SSEErrorEvent = {
             type: "error",
             message: "Stream error",
             details: error instanceof Error ? error.message : String(error),
             shouldRetry: retryAttempt < 2
           }
-          
+
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(errorEvent)}\n\n`))
           controller.close()
         }
@@ -642,10 +735,10 @@ Example:
   } catch (error) {
     logger.error("Top-level error", { error: error instanceof Error ? error.message : String(error) })
     return new Response(
-      JSON.stringify({ 
-        error: "Failed to generate questions", 
+      JSON.stringify({
+        error: "Failed to generate questions",
         details: error instanceof Error ? error.message : String(error),
-        requestId 
+        requestId
       }),
       { status: 500, headers: { "Content-Type": "application/json" } }
     )

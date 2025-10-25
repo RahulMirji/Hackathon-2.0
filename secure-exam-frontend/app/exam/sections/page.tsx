@@ -4,13 +4,16 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Code, BookOpen, FileText, Clock, CheckCircle, Terminal, Loader2 } from "lucide-react"
+import { Code, BookOpen, FileText, Clock, CheckCircle, Terminal, Loader2, RefreshCw } from "lucide-react"
 import { MonitoringOverlay } from "@/components/exam/monitoring-overlay"
 import { ViolationTracker } from "@/components/exam/violation-tracker"
 import { 
   getCurrentExamId, 
   getSectionQuestions,
-  areAllSectionsLoaded 
+  areAllSectionsLoaded,
+  clearExamSession,
+  getExamSession,
+  saveExamSession 
 } from "@/lib/exam-session"
 import { getOrLoadSectionQuestions } from "@/lib/question-service"
 import { createLogger } from "@/lib/utils"
@@ -19,7 +22,7 @@ export default function ExamSectionsPage() {
   const router = useRouter()
   const [loadingStatus, setLoadingStatus] = useState<Record<string, boolean>>({})
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({})
-  const [questionSources, setQuestionSources] = useState<Record<string, "api" | "mock" | "cache">>({})
+  const [questionSources, setQuestionSources] = useState<Record<string, "api" | "mock" | "cache" | "ai">>({})
   const [allLoaded, setAllLoaded] = useState(false)
 
   // Preload all questions in parallel
@@ -160,6 +163,29 @@ export default function ExamSectionsPage() {
     router.push(`/exam/environment?section=${sectionId}`)
   }
 
+  const handleClearCache = () => {
+    if (confirm("Clear all cached questions and reload? This will generate fresh questions.")) {
+      clearExamSession()
+      window.location.reload()
+    }
+  }
+
+  const handleGenerateMore = async (sectionId: string) => {
+    const logger = createLogger({ section: sectionId, event: "generate-more" })
+    
+    // Get current count
+    const currentCount = questionCounts[sectionId] || 0
+    const expectedCount = sections.find(s => s.id === sectionId)?.questions || 25
+    const missing = expectedCount - currentCount
+    
+    logger.info("Generating missing questions", { current: currentCount, expected: expectedCount, missing })
+    
+    // Don't clear cache - keep existing questions and add more
+    // The loadSection will detect incomplete cache and generate remaining
+    setLoadingStatus(prev => ({ ...prev, [sectionId]: false }))
+    await loadSection(sectionId)
+  }
+
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800">
       {/* Header */}
@@ -169,10 +195,21 @@ export default function ExamSectionsPage() {
             <div className="h-12 w-12 rounded-lg bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center shadow-md">
               <span className="text-lg font-bold text-white">HP</span>
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="font-bold text-xl">Computer Science - Final Assessment</h1>
               <p className="text-sm text-muted-foreground">Select a section to begin your exam</p>
             </div>
+            {process.env.NODE_ENV !== 'production' && (
+              <Button
+                onClick={handleClearCache}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <RefreshCw className="h-4 w-4" />
+                Clear Cache & Reload
+              </Button>
+            )}
           </div>
         </div>
       </div>
@@ -242,9 +279,23 @@ export default function ExamSectionsPage() {
                         </>
                       )}
                     </Button>
+                    
+                    {/* Show "Generate More" button if incomplete */}
+                    {loadingStatus[section.id] && questionCounts[section.id] && questionCounts[section.id] < section.questions && (
+                      <Button
+                        onClick={() => handleGenerateMore(section.id)}
+                        variant="outline"
+                        size="sm"
+                        className="w-full h-7 text-xs"
+                      >
+                        Generate {section.questions - questionCounts[section.id]} More
+                      </Button>
+                    )}
+                    
                     {loadingStatus[section.id] && questionSources[section.id] && (
                       <div className="text-[10px] text-center text-muted-foreground">
                         {questionSources[section.id] === "api" && "✓ AI Generated"}
+                        {questionSources[section.id] === "ai" && "✓ AI Generated"}
                         {questionSources[section.id] === "mock" && "⚠ Using Fallback"}
                         {questionSources[section.id] === "cache" && "✓ Cached"}
                       </div>

@@ -125,19 +125,22 @@ export function saveSectionQuestions(section: string, questions: any[]): void {
     session.seenTitles = new Set()
   }
 
-  // Deduplicate questions against session history
+  // Deduplicate questions within this batch only (not against entire session)
+  // This prevents the AI from generating the same question twice in one response
+  const seenInBatch = new Set<string>()
   const dedupedQuestions = questions.filter(q => {
     const title = q.title || q.text || ''
     const normalized = normalizeTitle(title)
 
-    if (session.seenTitles!.has(normalized)) {
+    // Check if we've seen this in the current batch
+    if (seenInBatch.has(normalized)) {
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`⚠️ [SESSION] Skipping duplicate: ${title}`)
+        console.log(`⚠️ [SESSION] Skipping duplicate in batch: ${title}`)
       }
       return false
     }
 
-    session.seenTitles!.add(normalized)
+    seenInBatch.add(normalized)
     return true
   })
 
