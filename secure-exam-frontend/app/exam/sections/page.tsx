@@ -54,7 +54,7 @@ export default function ExamSectionsPage() {
   ]
 
   const handleStartSection = (sectionId: string) => {
-    router.push(`/exam/environment?section=${sectionId}`)
+    router.push(`/exam/${sectionId}`)
   }
 
   return (
