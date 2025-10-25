@@ -24,7 +24,7 @@ export default function ConsentPage() {
 
   const handleContinue = () => {
     setIsLoading(true)
-    router.push("/exam/environment")
+    router.push("/exam/sections")
   }
 
   return (
@@ -128,10 +128,30 @@ export default function ConsentPage() {
           <Button onClick={() => router.back()} variant="outline" className="flex-1">
             Back
           </Button>
-          <Button onClick={handleContinue} disabled={isLoading} className="exam-button-primary flex-1">
-            {isLoading ? "Starting Exam..." : "Start Exam"}
+          <Button 
+            onClick={handleContinue} 
+            disabled={!allConsented || isLoading} 
+            className="exam-button-primary flex-1"
+          >
+            {isLoading ? "Proceeding..." : "Continue to Section Selection"}
           </Button>
         </div>
+        
+        {/* Consent Status Message */}
+        {!allConsented && (
+          <div className="text-center p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
+              ⚠️ Please check all 4 consent boxes above to continue
+            </p>
+          </div>
+        )}
+        {allConsented && (
+          <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+            <p className="text-sm font-medium text-green-800 dark:text-green-200">
+              ✓ All consents accepted. You can now continue!
+            </p>
+          </div>
+        )}
       </div>
     </main>
   )
