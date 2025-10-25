@@ -1,0 +1,20 @@
+COPY THIS EXACT URL FOR GITHUB OAUTH APP:
+
+https://exam-browser-1a754.firebaseapp.com/__/auth/handler
+
+STEPS:
+1. Go to: https://github.com/settings/developers
+2. Click your OAuth App (or create new one)
+3. Find "Authorization callback URL" field
+4. PASTE the URL above
+5. Click "Update application"
+6. Wait 2 minutes
+7. Try GitHub login again
+
+IMPORTANT:
+- Must be HTTPS (not HTTP)
+- Must include the double underscore: __
+- No trailing slash at the end
+- No spaces
+
+This is the ONLY URL that will work with Firebase!
