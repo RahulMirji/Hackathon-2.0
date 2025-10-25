@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { useAuth } from "@/components/auth/auth-context"
+import { useAuth } from "@/lib/auth-context"
 import {
   createExamSession,
   updateExamSession,
