@@ -97,6 +97,20 @@ export function NavBar({ items, className }: NavBarProps) {
     }
   }, [items])
 
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, item: NavItem) => {
+    setActiveTab(item.name)
+    
+    // Handle smooth scrolling for hash links
+    if (item.url.startsWith("#")) {
+      e.preventDefault()
+      const id = item.url.replace("#", "")
+      const element = document.getElementById(id)
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "start" })
+      }
+    }
+  }
+
   return (
     <div
       className={cn(
@@ -112,7 +126,7 @@ export function NavBar({ items, className }: NavBarProps) {
             <Link
               key={item.name}
               href={item.url}
-              onClick={() => setActiveTab(item.name)}
+              onClick={(e) => handleClick(e, item)}
               className={cn(
                 "relative cursor-pointer text-sm font-semibold px-6 py-2 rounded-full transition-colors",
                 "text-foreground/80 hover:text-primary",

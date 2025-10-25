@@ -6,11 +6,11 @@ import { AuthButton } from "@/components/auth/auth-button"
 
 export function Navbar() {
   const navItems = [
-    { name: "Home", url: "/landing", icon: Home },
-    { name: "About", url: "/about", icon: Info },
-    { name: "Features", url: "/landing#features", icon: Sparkles },
-    { name: "Hackathon", url: "/landing#hackathon", icon: Trophy },
-    { name: "Contact", url: "/landing#contact", icon: Mail },
+    { name: "Home", url: "#home", icon: Home },
+    { name: "Features", url: "#features", icon: Sparkles },
+    { name: "About Us", url: "#about", icon: Info },
+    { name: "Hackathon", url: "#hackathon", icon: Trophy },
+    { name: "Contact", url: "#contact", icon: Mail },
   ]
 
   return (
