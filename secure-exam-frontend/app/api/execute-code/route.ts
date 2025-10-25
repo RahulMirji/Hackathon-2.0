@@ -57,9 +57,11 @@ async function executeCode(code: string, language: string, input: string) {
       case "python":
         filePath = join(tempDir, "main.py")
         await writeFile(filePath, code)
+        // Try python first (Windows), then python3 (Linux/Mac)
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3'
         command = inputFilePath 
-          ? `python3 "${filePath}" < "${inputFilePath}"`
-          : `python3 "${filePath}"`
+          ? `${pythonCmd} "${filePath}" < "${inputFilePath}"`
+          : `${pythonCmd} "${filePath}"`
         break
 
       case "java":
@@ -111,16 +113,26 @@ async function executeCode(code: string, language: string, input: string) {
       error: stderr && !stdout ? stderr : null,
     }
   } catch (error: any) {
+    let errorMessage = error.stderr || error.message || "Execution failed"
+    
+    // Provide helpful error message if Python is not found
+    if (language.toLowerCase() === 'python' && errorMessage.includes('not found')) {
+      errorMessage = "Python is not installed or not in PATH. Please install Python from python.org and add it to your system PATH."
+    }
+    
     return {
       success: false,
       output: "",
-      error: error.stderr || error.message || "Execution failed",
+      error: errorMessage,
       executionTime: 0,
     }
   } finally {
     // Cleanup temp files
     try {
-      await execAsync(`rm -rf "${tempDir}"`)
+      const cleanupCmd = process.platform === 'win32' 
+        ? `rmdir /s /q "${tempDir}"`
+        : `rm -rf "${tempDir}"`
+      await execAsync(cleanupCmd)
     } catch (cleanupError) {
       console.error("Cleanup error:", cleanupError)
     }
