@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, Suspense } from "react"
+import { useState, useEffect, useCallback, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -10,7 +10,9 @@ import { ExamQuestions } from "@/components/exam/exam-questions"
 import { ViolationTracker } from "@/components/exam/violation-tracker"
 import { AlertCircle, FileText, HelpCircle, Send } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { getQuestionsBySection, getSectionInfo } from "@/lib/question-banks"
+import { getSectionInfo } from "@/lib/question-banks"
+import { getSectionQuestions } from "@/lib/exam-session"
+import { getOrLoadSectionQuestions } from "@/lib/question-service"
 
 type QuestionStatus = "not-visited" | "not-answered" | "answered" | "marked-review" | "answered-marked"
 
@@ -19,6 +21,16 @@ function ExamEnvironmentContent() {
   const searchParams = useSearchParams()
   const section = searchParams.get("section") || "mcq1"
   
+  // State for questions (initialized after mount to avoid hydration mismatch)
+  const [questions, setQuestions] = useState<any[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  
+  const sectionInfo = getSectionInfo(section)
+  const [answers, setAnswers] = useState<Record<number, string>>({})
+  const [questionStatus, setQuestionStatus] = useState<Record<number, QuestionStatus>>({})
+  const [showWarning, setShowWarning] = useState(false)
+  const [showInstructions, setShowInstructions] = useState(false)
+  
   // Redirect to coding page if coding section is selected
   useEffect(() => {
     if (section === "coding") {
@@ -26,21 +38,49 @@ function ExamEnvironmentContent() {
     }
   }, [section, router])
   
-  const QUESTIONS = getQuestionsBySection(section)
-  const sectionInfo = getSectionInfo(section)
-  const [answers, setAnswers] = useState<Record<number, string>>({})
-  const [questionStatus, setQuestionStatus] = useState<Record<number, QuestionStatus>>({})
-  const [showWarning, setShowWarning] = useState(false)
-  const [showInstructions, setShowInstructions] = useState(false)
+  // Load questions after mount to avoid hydration mismatch
+  useEffect(() => {
+    const loadQuestions = async () => {
+      // Check cache first
+      const cachedQuestions = getSectionQuestions(section)
+      if (cachedQuestions && cachedQuestions.length > 0) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`📋 [ENVIRONMENT] Using cached questions for ${section}:`, cachedQuestions.length)
+        }
+        setQuestions(cachedQuestions)
+        setIsLoading(false)
+        return
+      }
+      
+      // Load from API if not cached
+      try {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log(`📡 [ENVIRONMENT] Loading questions for ${section}...`)
+        }
+        const result = await getOrLoadSectionQuestions(section)
+        setQuestions(result.questions)
+        setIsLoading(false)
+      } catch (error) {
+        console.error(`❌ [ENVIRONMENT] Failed to load questions:`, error)
+        // Keep loading state to show error
+        setIsLoading(false)
+        setQuestions([])
+      }
+    }
+    
+    loadQuestions()
+  }, [section])
 
   useEffect(() => {
     // Initialize all questions as not-visited
-    const initialStatus: Record<number, QuestionStatus> = {}
-    QUESTIONS.forEach((q) => {
-      initialStatus[q.id] = "not-visited"
-    })
-    setQuestionStatus(initialStatus)
-  }, [QUESTIONS])
+    if (questions.length > 0) {
+      const initialStatus: Record<number, QuestionStatus> = {}
+      questions.forEach((q) => {
+        initialStatus[q.id] = "not-visited"
+      })
+      setQuestionStatus(initialStatus)
+    }
+  }, [questions])
 
   const handleAnswerChange = (questionId: number, answer: string) => {
     setAnswers((prev) => ({ ...prev, [questionId]: answer }))
@@ -85,14 +125,14 @@ function ExamEnvironmentContent() {
     }))
   }
 
-  const handleQuestionVisit = (questionId: number) => {
+  const handleQuestionVisit = useCallback((questionId: number) => {
     setQuestionStatus((prev) => {
       if (prev[questionId] === "not-visited") {
         return { ...prev, [questionId]: "not-answered" }
       }
       return prev
     })
-  }
+  }, [])
 
   const handleTimeUp = () => {
     setShowWarning(true)
@@ -108,6 +148,19 @@ function ExamEnvironmentContent() {
     notAnswered: Object.values(questionStatus).filter((s) => s === "not-answered").length,
     markedForReview: Object.values(questionStatus).filter((s) => s === "marked-review" || s === "answered-marked").length,
     notVisited: Object.values(questionStatus).filter((s) => s === "not-visited").length,
+  }
+  
+  // Show loading state while questions are being loaded
+  if (isLoading || questions.length === 0) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <Card className="p-8">
+          <div className="text-center">
+            <p className="text-lg font-semibold">Loading questions...</p>
+          </div>
+        </Card>
+      </main>
+    )
   }
 
   return (
@@ -142,7 +195,7 @@ function ExamEnvironmentContent() {
                     <h3 className="font-semibold mb-2">General Instructions:</h3>
                     <ul className="list-disc list-inside space-y-1 text-muted-foreground">
                       <li>Total duration: {sectionInfo.duration} minutes</li>
-                      <li>Total questions: {QUESTIONS.length}</li>
+                      <li>Total questions: {questions.length}</li>
                       <li>All questions are mandatory</li>
                       <li>You can navigate between questions using Previous/Next buttons</li>
                       <li>Use "Mark for Review" to flag questions you want to revisit</li>
@@ -199,7 +252,7 @@ function ExamEnvironmentContent() {
                   <h3 className="font-bold text-sm">Question Palette</h3>
                 </div>
                 <div className="grid grid-cols-5 gap-2 mb-4">
-                  {QUESTIONS.map((q) => {
+                  {questions.map((q) => {
                     const status = questionStatus[q.id] || "not-visited"
                     let bgColor = "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
                     let borderColor = ""
@@ -312,7 +365,7 @@ function ExamEnvironmentContent() {
               )}
 
               <ExamQuestions
-                questions={QUESTIONS}
+                questions={questions}
                 answers={answers}
                 questionStatus={questionStatus}
                 onAnswerChange={handleAnswerChange}

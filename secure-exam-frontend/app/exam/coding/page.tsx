@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -8,9 +8,24 @@ import { MonitoringOverlay } from "@/components/exam/monitoring-overlay"
 import { ViolationTrackerCompact } from "@/components/exam/violation-tracker-compact"
 import { ExamTimer } from "@/components/exam/exam-timer"
 import { CodeEditor } from "@/components/exam/code-editor"
-import { Play, Send, ChevronLeft, ChevronRight, HelpCircle, Save, Code2 } from "lucide-react"
+import { Play, Send, ChevronLeft, ChevronRight, HelpCircle, Save, Code2, Loader2 } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
+import { CodingQuestion, MOCK_QUESTIONS } from "@/lib/mock-questions"
+import { getSectionQuestions } from "@/lib/exam-session"
+
+// Normalize and trim output for comparison
+function normalizeOutput(output: string): string {
+  return output
+    .trim()
+    .replace(/\r\n/g, '\n')
+    .replace(/\s+$/gm, '')
+}
+
+// Sanitize test case input
+function sanitizeTestInput(input: string): string {
+  return input.endsWith('\n') ? input : input + '\n'
+}
 
 export default function CodingExamPage() {
   const router = useRouter()
@@ -19,88 +34,282 @@ export default function CodingExamPage() {
   const [output, setOutput] = useState("")
   const [showInstructions, setShowInstructions] = useState(false)
   const [selectedLanguage, setSelectedLanguage] = useState("python")
+  const [isRunning, setIsRunning] = useState(false)
+  const [executionTime, setExecutionTime] = useState<number | null>(null)
+  const [testResults, setTestResults] = useState<Array<{ passed: boolean; input: string; expected: string; actual: string }>>([])
+  const [showTestResults, setShowTestResults] = useState(false)
+  const [codingQuestions, setCodingQuestions] = useState<CodingQuestion[]>([])
+  const [isLoadingQuestions, setIsLoadingQuestions] = useState(true)
 
   const languages = [
     { value: "python", label: "Python" },
     { value: "java", label: "Java" },
     { value: "cpp", label: "C++" },
     { value: "c", label: "C" },
-    { value: "javascript", label: "JavaScript" },
-    { value: "typescript", label: "TypeScript" },
-    { value: "go", label: "Go" },
-    { value: "rust", label: "Rust" },
-    { value: "ruby", label: "Ruby" },
-    { value: "php", label: "PHP" },
   ]
 
-  const codingQuestions = [
-    {
-      id: 1,
-      title: "Two Sum",
-      description: "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target.",
-      constraints: [
-        "2 <= nums.length <= 10^4",
-        "-10^9 <= nums[i] <= 10^9",
-        "-10^9 <= target <= 10^9",
-        "Only one valid answer exists"
-      ],
-      examples: [
-        {
-          input: "nums = [2,7,11,15], target = 9",
-          output: "[0,1]",
-          explanation: "Because nums[0] + nums[1] == 9, we return [0, 1]"
-        },
-        {
-          input: "nums = [3,2,4], target = 6",
-          output: "[1,2]",
-          explanation: "Because nums[1] + nums[2] == 6, we return [1, 2]"
+  // Load questions on mount
+  useEffect(() => {
+    loadQuestions()
+  }, [])
+
+  const loadQuestions = async () => {
+    try {
+      // Check cache first
+      const cached = getSectionQuestions("coding")
+      if (cached && cached.length > 0) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.log("✅ [CODING] Using cached questions:", cached.length)
         }
-      ]
-    },
-    {
-      id: 2,
-      title: "Reverse String",
-      description: "Write a function that reverses a string. The input string is given as an array of characters s.",
-      constraints: [
-        "1 <= s.length <= 10^5",
-        "s[i] is a printable ascii character"
-      ],
-      examples: [
-        {
-          input: 's = ["h","e","l","l","o"]',
-          output: '["o","l","l","e","h"]',
-          explanation: "The string is reversed in-place"
-        },
-        {
-          input: 's = ["H","a","n","n","a","h"]',
-          output: '["h","a","n","n","a","H"]',
-          explanation: "The string is reversed in-place"
+        setCodingQuestions(cached)
+        setIsLoadingQuestions(false)
+        return
+      }
+      
+      // Load from API
+      const response = await fetch("/api/generate-questions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section: "coding", count: 2 }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`API failed: ${response.status}`)
+      }
+
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error("No reader available")
+      }
+
+      const decoder = new TextDecoder()
+      
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split("\n")
+
+        for (const line of lines) {
+          if (line.startsWith("data: ")) {
+            try {
+              const data = JSON.parse(line.slice(6))
+              
+              if (data.type === "partial" && data.questions && data.count >= 1) {
+                setCodingQuestions(data.questions)
+                setIsLoadingQuestions(false)
+              }
+              
+              if (data.type === "complete" && data.questions) {
+                setCodingQuestions(data.questions)
+                setIsLoadingQuestions(false)
+                
+                // Save to cache
+                const { saveSectionQuestions } = await import("@/lib/exam-session")
+                saveSectionQuestions("coding", data.questions)
+                return
+              }
+              
+              if (data.type === "error") {
+                throw new Error(data.message)
+              }
+            } catch (e) {
+              // Ignore parse errors
+            }
+          }
         }
-      ]
+      }
+      
+      throw new Error("No questions received")
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error("❌ [CODING] Failed to load questions:", error)
+      }
+      setCodingQuestions(MOCK_QUESTIONS)
+      setIsLoadingQuestions(false)
     }
-  ]
+  }
 
+  // Get current question safely
   const codingQuestion = codingQuestions[currentQuestion]
 
-  const handleRun = () => {
-    setOutput("Running code...\n\nTest Case 1: Passed ✓\nTest Case 2: Passed ✓")
+  // Generic starter template (no problem-specific logic)
+  const getGenericTemplate = (lang: string) => {
+    const templates: Record<string, string> = {
+      python: `# Read input and solve the problem
+# Your code here
+
+`,
+      java: `import java.util.*;
+
+public class Main {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        
+        // Your code here
+        
+        sc.close();
+    }
+}`,
+      cpp: `#include <iostream>
+#include <vector>
+#include <string>
+using namespace std;
+
+int main() {
+    // Your code here
+    
+    return 0;
+}`,
+      c: `#include <stdio.h>
+#include <string.h>
+
+int main() {
+    // Your code here
+    
+    return 0;
+}`
+    }
+    return templates[lang] || ""
+  }
+
+  const handleRun = async () => {
+    if (!code.trim()) {
+      setOutput("Error: Please write some code before running.")
+      return
+    }
+
+    setIsRunning(true)
+    setOutput("Running test cases...")
+    setExecutionTime(null)
+    setTestResults([])
+    setShowTestResults(false)
+
+    const question = codingQuestions[currentQuestion]
+    const results: Array<{ passed: boolean; input: string; expected: string; actual: string }> = []
+    let totalTime = 0
+
+    try {
+      for (let i = 0; i < question.testCases.length; i++) {
+        const testCase = question.testCases[i]
+        
+        // Sanitize input
+        const sanitizedInput = sanitizeTestInput(testCase.input)
+        
+        const response = await fetch("/api/execute-code", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            code,
+            language: selectedLanguage,
+            input: sanitizedInput,
+          }),
+        })
+
+        const result = await response.json()
+        totalTime += result.executionTime || 0
+
+        if (result.success) {
+          const actualOutput = normalizeOutput(result.output)
+          const expectedOutput = normalizeOutput(testCase.expectedOutput)
+          const passed = actualOutput === expectedOutput
+
+          if (!passed && process.env.NODE_ENV !== 'production') {
+            console.log(`Test ${i + 1} failed`)
+          }
+
+          results.push({
+            passed,
+            input: testCase.input,
+            expected: expectedOutput,
+            actual: actualOutput,
+          })
+        } else {
+          results.push({
+            passed: false,
+            input: testCase.input,
+            expected: testCase.expectedOutput,
+            actual: result.error || "No output",
+          })
+        }
+      }
+
+      setTestResults(results)
+      setShowTestResults(true)
+      setExecutionTime(totalTime)
+
+      const passedCount = results.filter(r => r.passed).length
+      const totalCount = results.length
+      
+      if (passedCount === totalCount) {
+        setOutput(`✓ All test cases passed! (${passedCount}/${totalCount})`)
+      } else {
+        setOutput(`✗ ${passedCount}/${totalCount} test cases passed`)
+      }
+    } catch (error) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error("Execution failed:", error)
+      }
+      setOutput(`Error: Failed to execute code.\n${error instanceof Error ? error.message : String(error)}`)
+    } finally {
+      setIsRunning(false)
+    }
+  }
+
+  const handleLanguageChange = (newLang: string) => {
+    setSelectedLanguage(newLang)
+    setOutput("")
+    setExecutionTime(null)
+    setTestResults([])
+    setShowTestResults(false)
+    setCode(getGenericTemplate(newLang))
   }
 
   const handleSave = () => {
-    // Save code logic here
     alert("Code saved successfully!")
   }
 
   const handleNext = () => {
     if (currentQuestion < codingQuestions.length - 1) {
-      setCurrentQuestion(currentQuestion + 1)
-      setCode("")
+      const nextQuestion = currentQuestion + 1
+      setCurrentQuestion(nextQuestion)
       setOutput("")
+      setExecutionTime(null)
+      setTestResults([])
+      setShowTestResults(false)
+      setCode(getGenericTemplate(selectedLanguage))
     }
   }
 
+  // Initialize with template when questions are loaded or question changes
+  useEffect(() => {
+    if (codingQuestions && codingQuestions.length > 0) {
+      setCode(getGenericTemplate(selectedLanguage))
+    }
+  }, [currentQuestion, codingQuestions, selectedLanguage])
+
   const handleSubmit = () => {
     router.push("/exam/sections")
+  }
+
+  // Show loading state while questions are being fetched
+  if (isLoadingQuestions || codingQuestions.length === 0) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <Card className="p-8 max-w-md">
+          <div className="flex flex-col items-center gap-4">
+            <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
+            <h2 className="text-xl font-semibold">Loading Questions...</h2>
+            <p className="text-sm text-muted-foreground text-center">
+              Generating coding challenges with AI. This may take a few seconds.
+            </p>
+          </div>
+        </Card>
+      </main>
+    )
   }
 
   return (
@@ -273,8 +482,9 @@ export default function CodingExamPage() {
                   <div className="flex items-center gap-2">
                     <select
                       value={selectedLanguage}
-                      onChange={(e) => setSelectedLanguage(e.target.value)}
+                      onChange={(e) => handleLanguageChange(e.target.value)}
                       className="px-4 py-2 text-sm border-2 border-gray-300 dark:border-gray-600 rounded-lg bg-gradient-to-r from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 text-foreground focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-semibold shadow-sm hover:shadow-md transition-all cursor-pointer appearance-none bg-no-repeat bg-right pr-10"
+                      disabled={isRunning}
                       style={{
                         backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
                         backgroundPosition: 'right 0.75rem center',
@@ -306,30 +516,80 @@ export default function CodingExamPage() {
                     onClick={handleSave}
                     variant="outline"
                     size="sm"
-                    className="gap-2 flex-1"
+                    className="gap-2"
+                    disabled={isRunning}
                   >
                     <Save className="h-4 w-4" />
-                    Save Code
+                    Save
                   </Button>
                   <Button
                     onClick={handleRun}
                     size="sm"
-                    className="gap-2 flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white"
+                    className="gap-2 flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white disabled:opacity-50"
+                    disabled={isRunning}
                   >
                     <Play className="h-4 w-4" />
-                    Run Code
+                    {isRunning ? "Running..." : "Run Test Cases"}
                   </Button>
                 </div>
 
                 {/* Output Section */}
                 {output && (
                   <div className="border-t border-border pt-3">
-                    <div className="flex items-center gap-2 mb-2">
-                      <h4 className="font-semibold text-sm">Output:</h4>
-                      <Badge variant="secondary" className="text-xs">Console</Badge>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <h4 className="font-semibold text-sm">Test Results:</h4>
+                        <Badge variant="secondary" className="text-xs">
+                          {testResults.filter(r => r.passed).length}/{testResults.length} Passed
+                        </Badge>
+                      </div>
+                      {executionTime !== null && (
+                        <Badge variant="outline" className="text-xs">
+                          {executionTime}ms
+                        </Badge>
+                      )}
                     </div>
-                    <div className="bg-[#1e1e1e] rounded-lg p-4 border-2 border-[#3e3e3e] max-h-32 overflow-y-auto">
-                      <pre className="text-sm text-[#d4d4d4] font-mono whitespace-pre-wrap">{output}</pre>
+                    <div className="bg-[#1e1e1e] rounded-lg p-4 border-2 border-[#3e3e3e] max-h-48 overflow-y-auto">
+                      <pre className="text-sm text-[#d4d4d4] font-mono whitespace-pre-wrap mb-3">{output}</pre>
+                      
+                      {showTestResults && (
+                        <div className="space-y-2 mt-3 pt-3 border-t border-[#3e3e3e]">
+                          {testResults.map((result, idx) => (
+                            <div 
+                              key={idx} 
+                              className={`p-2 rounded border ${
+                                result.passed 
+                                  ? 'bg-green-900/20 border-green-700' 
+                                  : 'bg-red-900/20 border-red-700'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className={`text-xs font-bold ${
+                                  result.passed ? 'text-green-400' : 'text-red-400'
+                                }`}>
+                                  {result.passed ? '✓' : '✗'} Test Case {idx + 1}
+                                </span>
+                              </div>
+                              {!result.passed && (
+                                <div className="text-xs space-y-1 mt-2">
+                                  <div>
+                                    <span className="text-gray-400">Input: </span>
+                                    <span className="text-[#d4d4d4]">{result.input.replace(/\n/g, ' → ')}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-400">Expected: </span>
+                                    <span className="text-green-400">"{result.expected}"</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-400">Got: </span>
+                                    <span className="text-red-400">"{result.actual || '(empty)'}"</span>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
