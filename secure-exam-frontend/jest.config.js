@@ -13,11 +13,17 @@ const customJestConfig = {
     '^@/(.*)$': '<rootDir>/$1',
   },
   collectCoverageFrom: [
+    'app/**/*.{js,jsx,ts,tsx}',
     'components/**/*.{js,jsx,ts,tsx}',
     'hooks/**/*.{js,jsx,ts,tsx}',
+    'lib/**/*.{js,jsx,ts,tsx}',
     '!**/*.d.ts',
     '!**/node_modules/**',
     '!**/.next/**',
+    '!**/layout.tsx',
+    '!**/loading.tsx',
+    '!**/not-found.tsx',
+    '!**/error.tsx',
   ],
   testMatch: [
     '**/__tests__/**/*.[jt]s?(x)',

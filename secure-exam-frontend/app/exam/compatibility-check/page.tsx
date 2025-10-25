@@ -610,7 +610,7 @@ const checkBrowser = () => {
     <main className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 dark:from-gray-900 dark:via-slate-900 dark:to-indigo-950">
       {/* Header */}
       <div className="sticky top-0 z-40 border-b border-border bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
@@ -632,11 +632,11 @@ const checkBrowser = () => {
                 Retest All
               </Button>
               <Button 
-                onClick={() => router.push('/exam/sections')}
+                onClick={() => router.push('/exam/id-verification')}
                 disabled={!allChecksPassed}
                 className="gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
               >
-                Continue to Exam
+                Continue to ID Verification
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
@@ -644,7 +644,7 @@ const checkBrowser = () => {
         </div>
       </div> 
      {/* Progress Section */}
-      <div className="max-w-7xl mx-auto px-6 py-6">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <Card className="p-6 shadow-lg border-2 border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Overall Progress</h2>
@@ -671,7 +671,7 @@ const checkBrowser = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-6 pb-8">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 pb-8">
         <div className="text-center mb-8">
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
             Professional System Compatibility Check
@@ -681,11 +681,13 @@ const checkBrowser = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* System Checks */}
-          <div className="lg:col-span-2 space-y-6">
+        <div className="space-y-8">
+          {/* Top Section - System Checks and Media Quality */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 items-stretch">
+            {/* System Checks - Takes 2 columns */}
+            <div className="xl:col-span-2 flex flex-col gap-6">
             {/* Critical System Checks */}
-            <Card className="p-6 shadow-lg border-2 border-gray-200 dark:border-gray-700">
+            <Card className="p-6 shadow-lg border-2 border-gray-200 dark:border-gray-700 h-fit">
               <div className="flex items-center gap-3 mb-6">
                 <Settings className="h-6 w-6 text-blue-600" />
                 <h3 className="text-xl font-bold text-gray-900 dark:text-white">System Requirements</h3>
@@ -701,7 +703,7 @@ const checkBrowser = () => {
                 )}
               </div>
               
-              <div className="grid gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {systemChecks.map((check) => (
                   <div 
                     key={check.id}
@@ -746,7 +748,7 @@ const checkBrowser = () => {
             </Card>  
           {/* Network Quality Details */}
             {networkStats && (
-              <Card className="p-6 shadow-lg border-2 border-gray-200 dark:border-gray-700">
+              <Card className="p-6 shadow-lg border-2 border-gray-200 dark:border-gray-700 flex-1 flex flex-col">
                 <div className="flex items-center gap-3 mb-6">
                   <Signal className="h-6 w-6 text-blue-600" />
                   <h3 className="text-xl font-bold text-gray-900 dark:text-white">Network Quality Analysis</h3>
@@ -789,15 +791,15 @@ const checkBrowser = () => {
                 </div>
                 
                 {/* Network Speed Gauges */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6">
                   {/* Download Speed Gauge */}
                   <div className="relative">
-                    <div className="text-center mb-4">
-                      <Download className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-                      <h4 className="font-semibold text-gray-900 dark:text-white">Download Speed</h4>
+                    <div className="text-center mb-3">
+                      <Download className="h-6 w-6 text-blue-600 mx-auto mb-1" />
+                      <h4 className="font-semibold text-gray-900 dark:text-white text-sm">Download Speed</h4>
                     </div>
-                    <div className="relative w-32 h-32 mx-auto">
-                      <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
+                    <div className="relative w-24 h-24 mx-auto">
+                      <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 120 120">
                         <circle
                           cx="60"
                           cy="60"
@@ -836,12 +838,12 @@ const checkBrowser = () => {
 
                   {/* Upload Speed Gauge */}
                   <div className="relative">
-                    <div className="text-center mb-4">
-                      <Upload className="h-8 w-8 text-green-600 mx-auto mb-2" />
-                      <h4 className="font-semibold text-gray-900 dark:text-white">Upload Speed</h4>
+                    <div className="text-center mb-3">
+                      <Upload className="h-6 w-6 text-green-600 mx-auto mb-1" />
+                      <h4 className="font-semibold text-gray-900 dark:text-white text-sm">Upload Speed</h4>
                     </div>
-                    <div className="relative w-32 h-32 mx-auto">
-                      <svg className="w-32 h-32 transform -rotate-90" viewBox="0 0 120 120">
+                    <div className="relative w-24 h-24 mx-auto">
+                      <svg className="w-24 h-24 transform -rotate-90" viewBox="0 0 120 120">
                         <circle
                           cx="60"
                           cy="60"
@@ -879,7 +881,7 @@ const checkBrowser = () => {
                   </div>
                 </div> 
                {/* Detailed Network Metrics */}
-                <div className="grid grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-950/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
                     <Clock className="h-6 w-6 text-yellow-600 mx-auto mb-2" />
                     <div className="text-xl font-bold text-gray-900 dark:text-white">{networkStats.latency}ms</div>
@@ -950,13 +952,76 @@ const checkBrowser = () => {
                     </div>
                   </div>
                 </div>
+
+                {/* Network Recommendations */}
+                <div className="mt-6 space-y-4">
+                  <h4 className="font-semibold text-gray-900 dark:text-white">Network Recommendations</h4>
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className={`p-3 rounded-lg border ${
+                      networkStats.downloadSpeed >= 25 ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' :
+                      networkStats.downloadSpeed >= 10 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800' :
+                      'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'
+                    }`}>
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className={`h-2 w-2 rounded-full ${
+                          networkStats.downloadSpeed >= 25 ? 'bg-green-500' :
+                          networkStats.downloadSpeed >= 10 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`} />
+                        <span className="font-medium">
+                          {networkStats.downloadSpeed >= 25 ? 'Download speed is optimal for exam' :
+                           networkStats.downloadSpeed >= 10 ? 'Download speed meets minimum requirements' :
+                           'Download speed may cause issues during exam'}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className={`p-3 rounded-lg border ${
+                      networkStats.latency <= 50 ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' :
+                      networkStats.latency <= 100 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800' :
+                      'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'
+                    }`}>
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className={`h-2 w-2 rounded-full ${
+                          networkStats.latency <= 50 ? 'bg-green-500' :
+                          networkStats.latency <= 100 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`} />
+                        <span className="font-medium">
+                          {networkStats.latency <= 50 ? 'Network latency is excellent' :
+                           networkStats.latency <= 100 ? 'Network latency is acceptable' :
+                           'High network latency detected'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className={`p-3 rounded-lg border ${
+                      networkStats.packetLoss <= 0.5 ? 'bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800' :
+                      networkStats.packetLoss <= 1 ? 'bg-yellow-50 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-800' :
+                      'bg-red-50 border-red-200 dark:bg-red-950/20 dark:border-red-800'
+                    }`}>
+                      <div className="flex items-center gap-2 text-sm">
+                        <div className={`h-2 w-2 rounded-full ${
+                          networkStats.packetLoss <= 0.5 ? 'bg-green-500' :
+                          networkStats.packetLoss <= 1 ? 'bg-yellow-500' : 'bg-red-500'
+                        }`} />
+                        <span className="font-medium">
+                          {networkStats.packetLoss <= 0.5 ? 'No significant packet loss detected' :
+                           networkStats.packetLoss <= 1 ? 'Minor packet loss detected' :
+                           'Significant packet loss may affect exam'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Spacer to push content and align with right column */}
+                <div className="flex-1"></div>
               </Card>
             )}
           </div> 
-         {/* Media Quality & Status */}
-          <div className="space-y-6">
+            {/* Media Quality - Takes 1 column */}
+            <div className="flex flex-col gap-6 h-full">
             {/* Camera Preview & Quality */}
-            <Card className="p-6 shadow-lg border-2 border-gray-200 dark:border-gray-700">
+            <Card className="p-4 shadow-lg border-2 border-gray-200 dark:border-gray-700 h-fit">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <Eye className="h-5 w-5 text-blue-600" />
@@ -1002,7 +1067,7 @@ const checkBrowser = () => {
                 )}
               </div>
               
-              <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-video mb-4">
+              <div className="relative bg-gray-900 rounded-lg overflow-hidden aspect-[4/3] mb-4">
                 <video 
                   ref={videoRef}
                   className="w-full h-full object-cover"
@@ -1088,7 +1153,7 @@ const checkBrowser = () => {
             </Card> 
            {/* Audio Quality & Microphone */}
             {mediaQuality?.audio && (
-              <Card className="p-6 shadow-lg border-2 border-gray-200 dark:border-gray-700">
+              <Card className="p-4 shadow-lg border-2 border-gray-200 dark:border-gray-700 h-fit">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <Volume2 className="h-5 w-5 text-blue-600" />
@@ -1191,43 +1256,69 @@ const checkBrowser = () => {
               </Card>
             )}
 
-            {/* Final Status */}
-            <Card className="p-6 shadow-lg border-2 border-gray-200 dark:border-gray-700">
-              <div className="text-center">
-                {allChecksPassed ? (
-                  <div className="space-y-4">
-                    <div className="h-16 w-16 bg-green-100 dark:bg-green-950/20 rounded-full flex items-center justify-center mx-auto">
-                      <CheckCircle2 className="h-8 w-8 text-green-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-green-800 dark:text-green-200">All Checks Passed!</h3>
-                      <p className="text-sm text-green-600 dark:text-green-400">Your system is ready for the exam.</p>
-                    </div>
-                  </div>
-                ) : criticalIssues > 0 ? (
-                  <div className="space-y-4">
-                    <div className="h-16 w-16 bg-red-100 dark:bg-red-950/20 rounded-full flex items-center justify-center mx-auto">
-                      <XCircle className="h-8 w-8 text-red-600" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-red-800 dark:text-red-200">Critical Issues Found</h3>
-                      <p className="text-sm text-red-600 dark:text-red-400">Please resolve the issues above before continuing.</p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <div className="h-16 w-16 bg-blue-100 dark:bg-blue-950/20 rounded-full flex items-center justify-center mx-auto">
-                      <RefreshCw className="h-8 w-8 text-blue-600 animate-spin" />
-                    </div>
-                    <div>
-                      <h3 className="text-lg font-bold text-blue-800 dark:text-blue-200">System Check in Progress</h3>
-                      <p className="text-sm text-blue-600 dark:text-blue-400">Please wait while we verify your system...</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Card>
+            </div>
           </div>
+
+          {/* Bottom Section - Full Width Final Status */}
+          <Card className="p-8 shadow-lg border-2 border-gray-200 dark:border-gray-700">
+            <div className="text-center">
+              {allChecksPassed ? (
+                <div className="flex items-center justify-center gap-6">
+                  <div className="h-20 w-20 bg-green-100 dark:bg-green-950/20 rounded-full flex items-center justify-center">
+                    <CheckCircle2 className="h-10 w-10 text-green-600" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-2xl font-bold text-green-800 dark:text-green-200 mb-2">All Checks Passed!</h3>
+                    <p className="text-lg text-green-600 dark:text-green-400">Your system is ready for the exam. You can proceed to the next step.</p>
+                  </div>
+                  <div className="flex-1"></div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">System Status</div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-green-600 font-semibold">Ready</span>
+                    </div>
+                  </div>
+                </div>
+              ) : criticalIssues > 0 ? (
+                <div className="flex items-center justify-center gap-6">
+                  <div className="h-20 w-20 bg-red-100 dark:bg-red-950/20 rounded-full flex items-center justify-center">
+                    <XCircle className="h-10 w-10 text-red-600" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-2xl font-bold text-red-800 dark:text-red-200 mb-2">Critical Issues Found</h3>
+                    <p className="text-lg text-red-600 dark:text-red-400">Please resolve the {criticalIssues} critical issue{criticalIssues > 1 ? 's' : ''} above before continuing.</p>
+                  </div>
+                  <div className="flex-1"></div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">System Status</div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 bg-red-500 rounded-full animate-pulse"></div>
+                      <span className="text-red-600 font-semibold">Issues Found</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-6">
+                  <div className="h-20 w-20 bg-blue-100 dark:bg-blue-950/20 rounded-full flex items-center justify-center">
+                    <RefreshCw className="h-10 w-10 text-blue-600 animate-spin" />
+                  </div>
+                  <div className="text-left">
+                    <h3 className="text-2xl font-bold text-blue-800 dark:text-blue-200 mb-2">System Check in Progress</h3>
+                    <p className="text-lg text-blue-600 dark:text-blue-400">Please wait while we verify your system compatibility...</p>
+                  </div>
+                  <div className="flex-1"></div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-500 dark:text-gray-400 mb-2">System Status</div>
+                    <div className="flex items-center gap-2">
+                      <div className="h-3 w-3 bg-blue-500 rounded-full animate-pulse"></div>
+                      <span className="text-blue-600 font-semibold">Checking...</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
         </div>
       </div>
     </main>
