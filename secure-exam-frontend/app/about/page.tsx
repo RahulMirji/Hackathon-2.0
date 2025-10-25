@@ -1,14 +1,14 @@
 "use client"
 
-import { AboutSection } from "@/components/landing/about-section"
+import { AboutSectionRedesigned } from "@/components/landing/about-section-redesigned"
 import { Navbar } from "@/components/landing/navbar"
 import { Footer } from "@/components/landing/footer"
 
 export default function AboutPage() {
     return (
-        <main className="min-h-screen bg-background text-foreground">
+        <main className="min-h-screen bg-white">
             <Navbar />
-            <AboutSection />
+            <AboutSectionRedesigned />
             <Footer />
         </main>
     )
