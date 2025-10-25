@@ -4,14 +4,14 @@ Modern authentication system with Firebase integration.
 
 ## Features
 
-- Email/Password authentication with Firebase
+- Google OAuth authentication with Firebase
 - JWT token management (stored in localStorage and cookies)
-- Mobile number collection during signup
-- Form validation with Zod
+- One-click sign in/sign up with Google
 - Modern, aesthetic UI matching the reference design
 - Responsive layout with image panel
 - Login/Logout buttons in navbar
 - Protected routes with middleware
+- Secure authentication flow
 
 ## Routes
 
@@ -24,14 +24,17 @@ Modern authentication system with Firebase integration.
 ## Usage
 
 ### Login
-Navigate to `/auth/login` to access the login page. After successful login, users are redirected to the landing page.
+Navigate to `/auth/login` to access the login page. Click "Continue with Google" to authenticate. After successful login, users are redirected to the landing page.
 
 ### Sign Up
-Navigate to `/auth/signup` to create a new account. After successful signup, users are redirected to the landing page.
+Navigate to `/auth/signup` to create a new account. Click "Continue with Google" to authenticate. After successful signup, users are redirected to the landing page.
 
-## Image Setup
+## Google OAuth Setup
 
-Place an image named `auth-image.jpg` in the `public` folder for the side panel image. You can use any professional image of someone working on a laptop.
+Make sure Google authentication is enabled in your Firebase Console:
+1. Go to Firebase Console > Authentication > Sign-in method
+2. Enable Google as a sign-in provider
+3. Add your authorized domains
 
 ## Auth Context
 
