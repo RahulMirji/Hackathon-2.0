@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { getSectionInfo } from "@/lib/question-banks"
 import { getSectionQuestions } from "@/lib/exam-session"
 import { getOrLoadSectionQuestions } from "@/lib/question-service"
+import { useExamSession } from "@/lib/hooks/use-exam-session"
+import { useExamAnswers } from "@/lib/hooks/use-exam-answers"
 
 type QuestionStatus = "not-visited" | "not-answered" | "answered" | "marked-review" | "answered-marked"
 
@@ -30,6 +32,15 @@ export default function MCQ1Page() {
   const [showWarning, setShowWarning] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
   
+  // Firestore hooks
+  const { startExamSection } = useExamSession()
+  const { saveAnswerDebounced, startQuestionTimer } = useExamAnswers(section)
+  
+  // Mark section as started in Firestore
+  useEffect(() => {
+    startExamSection(section)
+  }, [startExamSection, section])
+
   // Load questions after mount
   useEffect(() => {
     const loadQuestions = async () => {
@@ -81,17 +92,28 @@ export default function MCQ1Page() {
     // Update status based on answer
     setQuestionStatus((prev) => {
       const currentStatus = prev[questionId]
+      let newStatus: QuestionStatus
+      
       if (answer) {
         if (currentStatus === "marked-review") {
-          return { ...prev, [questionId]: "answered-marked" }
+          newStatus = "answered-marked"
+        } else {
+          newStatus = "answered"
         }
-        return { ...prev, [questionId]: "answered" }
       } else {
         if (currentStatus === "answered-marked") {
-          return { ...prev, [questionId]: "marked-review" }
+          newStatus = "marked-review"
+        } else {
+          newStatus = "not-answered"
         }
-        return { ...prev, [questionId]: "not-answered" }
       }
+      
+      // Save to Firestore
+      const questionIdStr = `${section}_q${questionId}`
+      const markedForReview = newStatus === "marked-review" || newStatus === "answered-marked"
+      saveAnswerDebounced(questionIdStr, questionId, answer, newStatus, markedForReview)
+      
+      return { ...prev, [questionId]: newStatus }
     })
   }
 
@@ -119,13 +141,16 @@ export default function MCQ1Page() {
   }
 
   const handleQuestionVisit = useCallback((questionId: number) => {
+    // Start timer for this question
+    startQuestionTimer(questionId)
+    
     setQuestionStatus((prev) => {
       if (prev[questionId] === "not-visited") {
         return { ...prev, [questionId]: "not-answered" }
       }
       return prev
     })
-  }, [])
+  }, [startQuestionTimer])
 
   const handleTimeUp = () => {
     setShowWarning(true)

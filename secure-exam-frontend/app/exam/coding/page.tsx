@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Badge } from "@/components/ui/badge"
 import { CodingQuestion, MOCK_QUESTIONS } from "@/lib/mock-questions"
 import { getSectionQuestions } from "@/lib/exam-session"
+import { useExamSession } from "@/lib/hooks/use-exam-session"
+import { useExamAnswers } from "@/lib/hooks/use-exam-answers"
 
 // Normalize and trim output for comparison
 function normalizeOutput(output: string): string {
@@ -29,6 +31,7 @@ function sanitizeTestInput(input: string): string {
 
 export default function CodingExamPage() {
   const router = useRouter()
+  const section = "coding"
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [code, setCode] = useState("")
   const [output, setOutput] = useState("")
@@ -40,6 +43,10 @@ export default function CodingExamPage() {
   const [showTestResults, setShowTestResults] = useState(false)
   const [codingQuestions, setCodingQuestions] = useState<CodingQuestion[]>([])
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true)
+  
+  // Firestore hooks
+  const { startExamSection } = useExamSession()
+  const { saveCode, startQuestionTimer } = useExamAnswers(section)
 
   const languages = [
     { value: "python", label: "Python" },
@@ -49,10 +56,22 @@ export default function CodingExamPage() {
     { value: "java", label: "Java" },
   ]
 
+  // Mark section as started
+  useEffect(() => {
+    startExamSection(section)
+  }, [startExamSection, section])
+
   // Load questions on mount
   useEffect(() => {
     loadQuestions()
   }, [])
+  
+  // Start timer when question changes
+  useEffect(() => {
+    if (codingQuestions.length > 0) {
+      startQuestionTimer(currentQuestion + 1)
+    }
+  }, [currentQuestion, codingQuestions, startQuestionTimer])
 
   const loadQuestions = async () => {
     try {
@@ -265,6 +284,16 @@ public class Solution {
       } else {
         setOutput(`✗ ${passedCount}/${totalCount} test cases passed`)
       }
+      
+      // Save code submission to Firestore
+      const questionId = `coding_q${currentQuestion + 1}`
+      await saveCode(
+        questionId,
+        currentQuestion + 1,
+        code,
+        selectedLanguage,
+        results
+      )
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') {
         console.error("Execution failed:", error)

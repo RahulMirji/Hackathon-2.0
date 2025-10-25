@@ -12,18 +12,38 @@ import {
   getSectionQuestions,
   areAllSectionsLoaded,
   clearExamSession,
-  getExamSession,
-  saveExamSession 
 } from "@/lib/exam-session"
 import { getOrLoadSectionQuestions } from "@/lib/question-service"
 import { createLogger } from "@/lib/utils"
+import { useExamSession } from "@/lib/hooks/use-exam-session"
+import { useAuth } from "@/lib/auth-context"
 
 export default function ExamSectionsPage() {
   const router = useRouter()
+  const { user } = useAuth()
+  const { examSession, startExam, loading: sessionLoading } = useExamSession()
   const [loadingStatus, setLoadingStatus] = useState<Record<string, boolean>>({})
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({})
   const [questionSources, setQuestionSources] = useState<Record<string, "api" | "mock" | "cache" | "ai">>({})
   const [allLoaded, setAllLoaded] = useState(false)
+
+  // Initialize exam session in Firestore
+  useEffect(() => {
+    const initializeExam = async () => {
+      if (!user) return
+      
+      const examId = getCurrentExamId()
+      if (!examId && !sessionLoading) {
+        // No exam session exists, create one
+        const newExamId = await startExam()
+        if (newExamId) {
+          console.log("✅ Created new exam session in Firestore:", newExamId)
+        }
+      }
+    }
+    
+    initializeExam()
+  }, [user, sessionLoading, startExam])
 
   // Preload all questions in parallel
   useEffect(() => {
