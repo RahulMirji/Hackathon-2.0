@@ -8,7 +8,7 @@ import { MonitoringOverlay } from "@/components/exam/monitoring-overlay"
 import { ViolationTrackerCompact } from "@/components/exam/violation-tracker-compact"
 import { ExamTimer } from "@/components/exam/exam-timer"
 import { CodeEditor } from "@/components/exam/code-editor"
-import { Play, Send, ChevronLeft, ChevronRight, HelpCircle, Save, Code2, Loader2 } from "lucide-react"
+import { Play, Send, ChevronLeft, ChevronRight, HelpCircle, Save, Code2, Loader2, AlertCircle } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { CodingQuestion, MOCK_QUESTIONS } from "@/lib/mock-questions"
@@ -47,6 +47,10 @@ export default function CodingExamPage() {
   // Firestore hooks
   const { startExamSection } = useExamSession()
   const { saveCode, startQuestionTimer } = useExamAnswers(section)
+  
+  // Session initialization state
+  const [sessionInitialized, setSessionInitialized] = useState(false)
+  const [sessionError, setSessionError] = useState<string | null>(null)
 
   const languages = [
     { value: "python", label: "Python" },
@@ -58,7 +62,18 @@ export default function CodingExamPage() {
 
   // Mark section as started
   useEffect(() => {
-    startExamSection(section)
+    const initializeSection = async () => {
+      try {
+        await startExamSection(section)
+        setSessionInitialized(true)
+        setSessionError(null)
+      } catch (error) {
+        console.error("❌ [CODING] Failed to initialize section:", error)
+        setSessionError(error instanceof Error ? error.message : "Failed to initialize section")
+      }
+    }
+    
+    initializeSection()
   }, [startExamSection, section])
 
   // Load questions on mount
@@ -285,15 +300,17 @@ public class Solution {
         setOutput(`✗ ${passedCount}/${totalCount} test cases passed`)
       }
       
-      // Save code submission to Firestore
-      const questionId = `coding_q${currentQuestion + 1}`
-      await saveCode(
-        questionId,
-        currentQuestion + 1,
-        code,
-        selectedLanguage,
-        results
-      )
+      // Save code submission to Firestore only if session is initialized
+      if (sessionInitialized) {
+        const questionId = `coding_q${currentQuestion + 1}`
+        await saveCode(
+          questionId,
+          currentQuestion + 1,
+          code,
+          selectedLanguage,
+          results
+        )
+      }
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') {
         console.error("Execution failed:", error)
@@ -351,6 +368,29 @@ public class Solution {
             <p className="text-sm text-muted-foreground text-center">
               Generating coding challenges with AI. This may take a few seconds.
             </p>
+          </div>
+        </Card>
+      </main>
+    )
+  }
+  
+  // Show session error if initialization failed
+  if (sessionError) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <Card className="p-8 max-w-md">
+          <div className="text-center space-y-4">
+            <AlertCircle className="h-12 w-12 text-red-600 mx-auto" />
+            <h2 className="text-xl font-bold text-red-600">Session Error</h2>
+            <p className="text-sm text-muted-foreground">{sessionError}</p>
+            <div className="flex gap-2">
+              <Button onClick={() => window.location.reload()} variant="default" className="flex-1">
+                Retry
+              </Button>
+              <Button onClick={() => router.push("/exam/sections")} variant="outline" className="flex-1">
+                Back to Sections
+              </Button>
+            </div>
           </div>
         </Card>
       </main>

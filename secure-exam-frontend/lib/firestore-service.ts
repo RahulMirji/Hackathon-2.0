@@ -55,50 +55,77 @@ export async function createExamSession(
   examId: string,
   userId: string,
   userEmail: string
-): Promise<void> {
-  const examSession: ExamSession = {
-    examId,
-    userId,
-    userEmail,
-    startTime: Timestamp.now(),
-    endTime: null,
-    status: "in-progress",
-    totalDuration: 0,
-    sectionsCompleted: {
-      mcq1: false,
-      mcq2: false,
-      mcq3: false,
-      coding: false,
-    },
-    sectionTimestamps: {},
-    totalQuestions: 0,
-    totalAnswered: 0,
-    totalCorrect: 0,
-    totalScore: 0,
-    violationSummary: {
-      tabSwitch: 0,
-      personOutOfFrame: 0,
-      voiceDetection: 0,
-      lookingAway: 0,
-      headphonesDetected: false,
-      totalViolations: 0,
-      flagged: false,
-    },
-    browserInfo: {
-      userAgent: navigator.userAgent,
-      platform: navigator.platform,
-      language: navigator.language,
-      screenResolution: `${window.screen.width}x${window.screen.height}`,
-    },
-    createdAt: Timestamp.now(),
-    updatedAt: Timestamp.now(),
-  }
+): Promise<boolean> {
+  try {
+    const docRef = doc(db, COLLECTIONS.EXAM_SESSIONS, examId)
+    
+    // Check if session already exists
+    const docSnap = await getDoc(docRef)
+    if (docSnap.exists()) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn("⚠️ [FIRESTORE] Exam session already exists:", examId)
+      }
+      return true // Session already exists, consider it success
+    }
+    
+    const examSession: ExamSession = {
+      examId,
+      userId,
+      userEmail,
+      startTime: Timestamp.now(),
+      endTime: null,
+      status: "in-progress",
+      totalDuration: 0,
+      sectionsCompleted: {
+        mcq1: false,
+        mcq2: false,
+        mcq3: false,
+        coding: false,
+      },
+      sectionTimestamps: {},
+      totalQuestions: 0,
+      totalAnswered: 0,
+      totalCorrect: 0,
+      totalScore: 0,
+      violationSummary: {
+        tabSwitch: 0,
+        personOutOfFrame: 0,
+        voiceDetection: 0,
+        lookingAway: 0,
+        headphonesDetected: false,
+        totalViolations: 0,
+        flagged: false,
+      },
+      browserInfo: {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        screenResolution: `${window.screen.width}x${window.screen.height}`,
+      },
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    }
 
-  const docRef = doc(db, COLLECTIONS.EXAM_SESSIONS, examId)
-  await setDoc(docRef, examSession)
-  
-  if (process.env.NODE_ENV !== 'production') {
-    console.log("✅ [FIRESTORE] Created exam session:", examId)
+    await setDoc(docRef, examSession)
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log("✅ [FIRESTORE] Created exam session:", examId)
+    }
+    
+    return true
+  } catch (error) {
+    console.error("❌ [FIRESTORE] Failed to create exam session:", error)
+    
+    // Provide specific error messages
+    if (error instanceof Error) {
+      if (error.message.includes("permission")) {
+        throw new Error("Permission denied: Unable to create exam session. Please check authentication.")
+      } else if (error.message.includes("network")) {
+        throw new Error("Network error: Unable to create exam session. Please check your internet connection.")
+      }
+    }
+    
+    throw new Error("Failed to create exam session. Please try again.")
   }
 }
 
@@ -120,16 +147,53 @@ export async function getExamSession(examId: string): Promise<ExamSession | null
  */
 export async function updateExamSession(
   examId: string,
-  updates: Partial<ExamSession>
+  updates: Partial<ExamSession>,
+  createIfMissing: boolean = false
 ): Promise<void> {
+  try {
+    const docRef = doc(db, COLLECTIONS.EXAM_SESSIONS, examId)
+    const docSnap = await getDoc(docRef)
+    
+    // Check if session exists
+    if (!docSnap.exists()) {
+      if (createIfMissing) {
+        throw new Error(`Cannot update exam session ${examId}: Session does not exist. Please create the session first.`)
+      } else {
+        if (process.env.NODE_ENV !== 'production') {
+          console.warn(`⚠️ [FIRESTORE] Exam session ${examId} doesn't exist yet, skipping update`)
+        }
+        return
+      }
+    }
+    
+    await updateDoc(docRef, {
+      ...updates,
+      updatedAt: serverTimestamp(),
+    })
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log("✅ [FIRESTORE] Updated exam session:", examId)
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(`❌ [FIRESTORE] Failed to update exam session:`, error)
+    }
+    throw error
+  }
+}
+
+/**
+ * Verify session exists (helper function)
+ */
+async function verifySessionExists(examId: string): Promise<void> {
   const docRef = doc(db, COLLECTIONS.EXAM_SESSIONS, examId)
-  await updateDoc(docRef, {
-    ...updates,
-    updatedAt: serverTimestamp(),
-  })
+  const docSnap = await getDoc(docRef)
   
-  if (process.env.NODE_ENV !== 'production') {
-    console.log("✅ [FIRESTORE] Updated exam session:", examId)
+  if (!docSnap.exists()) {
+    throw new Error(
+      `Exam session ${examId} does not exist. The session may not have been properly initialized. ` +
+      `Please return to the sections page and try again.`
+    )
   }
 }
 
@@ -137,14 +201,23 @@ export async function updateExamSession(
  * Mark section as started
  */
 export async function startSection(examId: string, section: SectionType): Promise<void> {
-  const docRef = doc(db, COLLECTIONS.EXAM_SESSIONS, examId)
-  await updateDoc(docRef, {
-    [`sectionTimestamps.${section}.startTime`]: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  })
-  
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`✅ [FIRESTORE] Started section ${section} for exam:`, examId)
+  try {
+    await verifySessionExists(examId)
+    
+    const docRef = doc(db, COLLECTIONS.EXAM_SESSIONS, examId)
+    await updateDoc(docRef, {
+      [`sectionTimestamps.${section}.startTime`]: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ [FIRESTORE] Started section ${section} for exam:`, examId)
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(`❌ [FIRESTORE] Failed to start section:`, error)
+    }
+    throw error
   }
 }
 
@@ -152,15 +225,24 @@ export async function startSection(examId: string, section: SectionType): Promis
  * Mark section as completed
  */
 export async function completeSection(examId: string, section: SectionType): Promise<void> {
-  const docRef = doc(db, COLLECTIONS.EXAM_SESSIONS, examId)
-  await updateDoc(docRef, {
-    [`sectionsCompleted.${section}`]: true,
-    [`sectionTimestamps.${section}.endTime`]: serverTimestamp(),
-    updatedAt: serverTimestamp(),
-  })
-  
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`✅ [FIRESTORE] Completed section ${section} for exam:`, examId)
+  try {
+    await verifySessionExists(examId)
+    
+    const docRef = doc(db, COLLECTIONS.EXAM_SESSIONS, examId)
+    await updateDoc(docRef, {
+      [`sectionsCompleted.${section}`]: true,
+      [`sectionTimestamps.${section}.endTime`]: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    })
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ [FIRESTORE] Completed section ${section} for exam:`, examId)
+    }
+  } catch (error) {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(`❌ [FIRESTORE] Failed to complete section:`, error)
+    }
+    throw error
   }
 }
 
@@ -194,50 +276,59 @@ export async function saveQuestions(
   section: SectionType,
   questions: any[]
 ): Promise<void> {
-  const batch = writeBatch(db)
-  
-  questions.forEach((q, index) => {
-    const questionDoc: any = {
-      questionId: `${section}_q${q.id || index + 1}`,
-      section,
-      questionNumber: q.id || index + 1,
-      type: section === "coding" ? "coding" : "mcq",
-      title: q.title || q.text || "",
-      source: q.source || "ai",
-      createdAt: Timestamp.now(),
+  try {
+    // Verify session exists before saving questions
+    await verifySessionExists(examId)
+    
+    const batch = writeBatch(db)
+    
+    questions.forEach((q, index) => {
+      const questionDoc: any = {
+        questionId: `${section}_q${q.id || index + 1}`,
+        section,
+        questionNumber: q.id || index + 1,
+        type: section === "coding" ? "coding" : "mcq",
+        title: q.title || q.text || "",
+        source: q.source || "ai",
+        createdAt: Timestamp.now(),
+      }
+      
+      // Only add fields if they're not undefined
+      if (q.description !== undefined) questionDoc.description = q.description
+      if (q.options !== undefined) questionDoc.options = q.options
+      if (q.correctAnswer !== undefined) questionDoc.correctAnswer = q.correctAnswer
+      if (q.answer !== undefined) questionDoc.correctAnswer = q.answer
+      if (q.constraints !== undefined) questionDoc.constraints = q.constraints
+      if (q.examples !== undefined) questionDoc.examples = q.examples
+      if (q.testCases !== undefined) questionDoc.testCases = q.testCases
+      if (q.difficulty !== undefined) questionDoc.difficulty = q.difficulty
+      if (q.tags !== undefined) questionDoc.tags = q.tags
+      
+      const docRef = doc(
+        db,
+        COLLECTIONS.EXAM_SESSIONS,
+        examId,
+        SUBCOLLECTIONS.QUESTIONS,
+        questionDoc.questionId
+      )
+      batch.set(docRef, questionDoc)
+    })
+    
+    await batch.commit()
+    
+    // Update total questions count
+    const sessionRef = doc(db, COLLECTIONS.EXAM_SESSIONS, examId)
+    await updateDoc(sessionRef, {
+      totalQuestions: questions.length,
+      updatedAt: serverTimestamp(),
+    })
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ [FIRESTORE] Saved ${questions.length} questions for ${section}`)
     }
-    
-    // Only add fields if they're not undefined
-    if (q.description !== undefined) questionDoc.description = q.description
-    if (q.options !== undefined) questionDoc.options = q.options
-    if (q.correctAnswer !== undefined) questionDoc.correctAnswer = q.correctAnswer
-    if (q.answer !== undefined) questionDoc.correctAnswer = q.answer
-    if (q.constraints !== undefined) questionDoc.constraints = q.constraints
-    if (q.examples !== undefined) questionDoc.examples = q.examples
-    if (q.testCases !== undefined) questionDoc.testCases = q.testCases
-    if (q.difficulty !== undefined) questionDoc.difficulty = q.difficulty
-    if (q.tags !== undefined) questionDoc.tags = q.tags
-    
-    const docRef = doc(
-      db,
-      COLLECTIONS.EXAM_SESSIONS,
-      examId,
-      SUBCOLLECTIONS.QUESTIONS,
-      questionDoc.questionId
-    )
-    batch.set(docRef, questionDoc)
-  })
-  
-  await batch.commit()
-  
-  // Update total questions count
-  await updateDoc(doc(db, COLLECTIONS.EXAM_SESSIONS, examId), {
-    totalQuestions: questions.length,
-    updatedAt: serverTimestamp(),
-  })
-  
-  if (process.env.NODE_ENV !== 'production') {
-    console.log(`✅ [FIRESTORE] Saved ${questions.length} questions for ${section}`)
+  } catch (error) {
+    console.error(`❌ [FIRESTORE] Failed to save questions:`, error)
+    throw error
   }
 }
 
@@ -275,61 +366,69 @@ export async function saveAnswer(
   markedForReview: boolean,
   timeSpent: number = 0
 ): Promise<void> {
-  const answerId = `${section}_a${questionNumber}`
-  const docRef = doc(
-    db,
-    COLLECTIONS.EXAM_SESSIONS,
-    examId,
-    SUBCOLLECTIONS.ANSWERS,
-    answerId
-  )
-  
-  // Check if answer exists
-  const docSnap = await getDoc(docRef)
-  const now = Timestamp.now()
-  
-  if (docSnap.exists()) {
-    // Update existing answer
-    const updateData: any = {
-      status,
-      markedForReview,
-      timeSpent,
-      lastModifiedAt: now,
-      updatedAt: now,
+  try {
+    // Verify session exists before saving answer
+    await verifySessionExists(examId)
+    
+    const answerId = `${section}_a${questionNumber}`
+    const docRef = doc(
+      db,
+      COLLECTIONS.EXAM_SESSIONS,
+      examId,
+      SUBCOLLECTIONS.ANSWERS,
+      answerId
+    )
+    
+    // Check if answer exists
+    const docSnap = await getDoc(docRef)
+    const now = Timestamp.now()
+    
+    if (docSnap.exists()) {
+      // Update existing answer
+      const updateData: any = {
+        status,
+        markedForReview,
+        timeSpent,
+        lastModifiedAt: now,
+        updatedAt: now,
+      }
+      
+      // Only add userAnswer if it's not undefined
+      if (userAnswer !== undefined) {
+        updateData.userAnswer = userAnswer
+      }
+      
+      await updateDoc(docRef, updateData)
+    } else {
+      // Create new answer
+      const answerDoc: any = {
+        answerId,
+        questionId,
+        section,
+        questionNumber,
+        status,
+        markedForReview,
+        timeSpent,
+        firstVisitedAt: now,
+        lastModifiedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      }
+      
+      // Only add userAnswer if it's not undefined
+      if (userAnswer !== undefined) {
+        answerDoc.userAnswer = userAnswer
+      }
+      
+      await setDoc(docRef, answerDoc)
     }
     
-    // Only add userAnswer if it's not undefined
-    if (userAnswer !== undefined) {
-      updateData.userAnswer = userAnswer
-    }
-    
-    await updateDoc(docRef, updateData)
-  } else {
-    // Create new answer
-    const answerDoc: any = {
-      answerId,
-      questionId,
-      section,
-      questionNumber,
-      status,
-      markedForReview,
-      timeSpent,
-      firstVisitedAt: now,
-      lastModifiedAt: now,
-      createdAt: now,
-      updatedAt: now,
-    }
-    
-    // Only add userAnswer if it's not undefined
-    if (userAnswer !== undefined) {
-      answerDoc.userAnswer = userAnswer
-    }
-    
-    await setDoc(docRef, answerDoc)
+    // Update exam session answered count
+    await updateAnsweredCount(examId)
+  } catch (error) {
+    console.error(`❌ [FIRESTORE] Failed to save answer:`, error)
+    throw error
   }
-  
-  // Update exam session answered count
-  await updateAnsweredCount(examId)
 }
 
 /**
@@ -399,13 +498,31 @@ export async function getAnswers(examId: string): Promise<AnswerDocument[]> {
  * Update answered count in exam session
  */
 async function updateAnsweredCount(examId: string): Promise<void> {
-  const answers = await getAnswers(examId)
-  const answeredCount = answers.filter(a => a.userAnswer !== null && a.userAnswer !== "").length
-  
-  await updateDoc(doc(db, COLLECTIONS.EXAM_SESSIONS, examId), {
-    totalAnswered: answeredCount,
-    updatedAt: serverTimestamp(),
-  })
+  try {
+    const sessionRef = doc(db, COLLECTIONS.EXAM_SESSIONS, examId)
+    const sessionSnap = await getDoc(sessionRef)
+    
+    // Only update if session exists
+    if (!sessionSnap.exists()) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.warn(`⚠️ [FIRESTORE] Exam session ${examId} doesn't exist yet, skipping answer count update`)
+      }
+      return
+    }
+    
+    const answers = await getAnswers(examId)
+    const answeredCount = answers.filter(a => a.userAnswer !== null && a.userAnswer !== "").length
+    
+    await updateDoc(sessionRef, {
+      totalAnswered: answeredCount,
+      updatedAt: serverTimestamp(),
+    })
+  } catch (error) {
+    // Silently fail if session doesn't exist
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn(`⚠️ [FIRESTORE] Failed to update answer count:`, error)
+    }
+  }
 }
 
 // ============================================================================
@@ -546,7 +663,11 @@ export function subscribeToViolations(
 export async function calculateAndSaveResult(examId: string): Promise<ExamResult> {
   const session = await getExamSession(examId)
   if (!session) {
-    throw new Error("Exam session not found")
+    throw new Error(
+      `Exam session not found (ID: ${examId}). ` +
+      `The session may not have been properly initialized. ` +
+      `Please ensure you started the exam from the sections page.`
+    )
   }
   
   const questions = await getDocs(

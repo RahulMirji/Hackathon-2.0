@@ -36,9 +36,24 @@ export default function MCQ1Page() {
   const { startExamSection } = useExamSession()
   const { saveAnswerDebounced, startQuestionTimer } = useExamAnswers(section)
   
+  // Session initialization state
+  const [sessionInitialized, setSessionInitialized] = useState(false)
+  const [sessionError, setSessionError] = useState<string | null>(null)
+  
   // Mark section as started in Firestore
   useEffect(() => {
-    startExamSection(section)
+    const initializeSection = async () => {
+      try {
+        await startExamSection(section)
+        setSessionInitialized(true)
+        setSessionError(null)
+      } catch (error) {
+        console.error("❌ [MCQ1] Failed to initialize section:", error)
+        setSessionError(error instanceof Error ? error.message : "Failed to initialize section")
+      }
+    }
+    
+    initializeSection()
   }, [startExamSection, section])
 
   // Load questions after mount
@@ -108,10 +123,12 @@ export default function MCQ1Page() {
         }
       }
       
-      // Save to Firestore
-      const questionIdStr = `${section}_q${questionId}`
-      const markedForReview = newStatus === "marked-review" || newStatus === "answered-marked"
-      saveAnswerDebounced(questionIdStr, questionId, answer, newStatus, markedForReview)
+      // Save to Firestore only if session is initialized
+      if (sessionInitialized) {
+        const questionIdStr = `${section}_q${questionId}`
+        const markedForReview = newStatus === "marked-review" || newStatus === "answered-marked"
+        saveAnswerDebounced(questionIdStr, questionId, answer, newStatus, markedForReview)
+      }
       
       return { ...prev, [questionId]: newStatus }
     })
@@ -175,6 +192,29 @@ export default function MCQ1Page() {
         <Card className="p-8">
           <div className="text-center">
             <p className="text-lg font-semibold">Loading questions...</p>
+          </div>
+        </Card>
+      </main>
+    )
+  }
+  
+  // Show session error if initialization failed
+  if (sessionError) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <Card className="p-8 max-w-md">
+          <div className="text-center space-y-4">
+            <AlertCircle className="h-12 w-12 text-red-600 mx-auto" />
+            <h2 className="text-xl font-bold text-red-600">Session Error</h2>
+            <p className="text-sm text-muted-foreground">{sessionError}</p>
+            <div className="flex gap-2">
+              <Button onClick={() => window.location.reload()} variant="default" className="flex-1">
+                Retry
+              </Button>
+              <Button onClick={() => router.push("/exam/sections")} variant="outline" className="flex-1">
+                Back to Sections
+              </Button>
+            </div>
           </div>
         </Card>
       </main>

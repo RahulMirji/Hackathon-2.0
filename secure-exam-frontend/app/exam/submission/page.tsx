@@ -21,11 +21,29 @@ export default function ExamSubmissionPage() {
     const examId = getCurrentExamId()
     if (!examId) {
       setStatus("error")
-      setMessage("No active exam session found")
+      setMessage("No active exam session found. Please return to the sections page and start the exam.")
       return
     }
 
     try {
+      setMessage("Verifying exam session...")
+      
+      // Import getExamSession to verify session exists
+      const { getExamSession } = await import("@/lib/firestore-service")
+      const session = await getExamSession(examId)
+      
+      if (!session) {
+        // Session doesn't exist - attempt recovery
+        console.error("❌ [SUBMISSION] Session not found, attempting recovery")
+        setStatus("error")
+        setMessage(
+          `Exam session not found (ID: ${examId}). ` +
+          `The session may not have been properly initialized. ` +
+          `Please contact support with this exam ID.`
+        )
+        return
+      }
+      
       setMessage("Finalizing your answers...")
       
       // Mark exam as completed
@@ -47,9 +65,22 @@ export default function ExamSubmissionPage() {
         router.push("/exam/results")
       }, 2000)
     } catch (error) {
-      console.error("Failed to submit exam:", error)
+      console.error("❌ [SUBMISSION] Failed to submit exam:", error)
       setStatus("error")
-      setMessage("Failed to submit exam. Please try again.")
+      
+      // Parse error to provide specific guidance
+      const errorMsg = error instanceof Error ? error.message : String(error)
+      
+      if (errorMsg.includes("session not found") || errorMsg.includes("does not exist")) {
+        setMessage(
+          `Exam session not found. The session may not have been properly initialized. ` +
+          `Exam ID: ${examId}. Please contact support or try returning to the sections page.`
+        )
+      } else if (errorMsg.includes("network") || errorMsg.includes("fetch")) {
+        setMessage("Network error: Please check your internet connection and try again.")
+      } else {
+        setMessage(`Failed to submit exam: ${errorMsg}`)
+      }
     }
   }
 
@@ -80,13 +111,27 @@ export default function ExamSubmissionPage() {
           {status === "error" && (
             <>
               <AlertCircle className="h-16 w-16 text-red-600" />
-              <h2 className="text-2xl font-bold text-center text-red-600">{message}</h2>
-              <div className="flex gap-2 mt-4">
-                <Button onClick={submitExam} variant="default">
-                  Retry
+              <h2 className="text-2xl font-bold text-center text-red-600">Submission Error</h2>
+              <p className="text-sm text-muted-foreground text-center max-w-md">{message}</p>
+              <div className="flex flex-col gap-2 mt-4 w-full">
+                <Button onClick={submitExam} variant="default" className="w-full">
+                  Retry Submission
                 </Button>
-                <Button onClick={() => router.push("/exam/sections")} variant="outline">
+                <Button onClick={() => router.push("/exam/sections")} variant="outline" className="w-full">
                   Back to Sections
+                </Button>
+                <Button 
+                  onClick={() => {
+                    const examId = getCurrentExamId()
+                    const diagnosticInfo = `Exam ID: ${examId}\nTimestamp: ${new Date().toISOString()}\nError: ${message}`
+                    navigator.clipboard.writeText(diagnosticInfo)
+                    alert("Diagnostic info copied to clipboard. Please contact support.")
+                  }} 
+                  variant="ghost" 
+                  size="sm"
+                  className="w-full"
+                >
+                  Copy Diagnostic Info
                 </Button>
               </div>
             </>

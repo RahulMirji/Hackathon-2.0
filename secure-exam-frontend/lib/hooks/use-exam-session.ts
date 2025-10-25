@@ -45,8 +45,9 @@ export function useExamSession() {
   // Start new exam
   const startExam = useCallback(async () => {
     if (!user) {
-      setError("User not authenticated")
-      return null
+      const error = "User not authenticated"
+      setError(error)
+      throw new Error(error)
     }
 
     try {
@@ -56,23 +57,71 @@ export function useExamSession() {
       // Store in localStorage for quick access
       localStorage.setItem("current_exam_id", examId)
       
+      // Import and set the Firestore session created flag
+      const { setFirestoreSessionCreated } = await import("../exam-session")
+      setFirestoreSessionCreated(true)
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log("✅ [USE-EXAM-SESSION] Created exam session and set flag:", examId)
+      }
+      
       return examId
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start exam")
-      return null
+      const errorMsg = err instanceof Error ? err.message : "Failed to start exam"
+      setError(errorMsg)
+      throw err
     }
+  }, [user])
+
+  // Ensure session exists helper
+  const ensureSessionExists = useCallback(async (): Promise<string> => {
+    const { hasFirestoreSession, setFirestoreSessionCreated } = await import("../exam-session")
+    
+    let examId = getCurrentExamId()
+    const hasSession = hasFirestoreSession()
+    
+    // If no exam ID or no Firestore session, create one
+    if (!examId || !hasSession) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log("🔧 [USE-EXAM-SESSION] Creating missing session", { examId, hasSession })
+      }
+      
+      examId = generateExamId()
+      
+      // Use user info if available, otherwise use demo user
+      const userId = user?.uid || "demo_user"
+      const userEmail = user?.email || "demo@example.com"
+      
+      await createExamSession(examId, userId, userEmail)
+      localStorage.setItem("current_exam_id", examId)
+      setFirestoreSessionCreated(true)
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log("✅ [USE-EXAM-SESSION] Created exam session:", examId)
+      }
+    }
+    
+    return examId
   }, [user])
 
   // Start a section
   const startExamSection = useCallback(async (section: SectionType) => {
-    if (!examSession) return
-
     try {
-      await startSection(examSession.examId, section)
+      const examId = await ensureSessionExists()
+      await startSection(examId, section)
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log("✅ [USE-EXAM-SESSION] Started section:", section)
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start section")
+      const errorMsg = err instanceof Error ? err.message : "Failed to start section"
+      setError(errorMsg)
+      if (process.env.NODE_ENV !== 'production') {
+        console.error("❌ [USE-EXAM-SESSION] Failed to start section:", err)
+      }
+      throw err
     }
-  }, [examSession])
+  }, [user, ensureSessionExists])
 
   // Complete a section
   const completeExamSection = useCallback(async (section: SectionType) => {

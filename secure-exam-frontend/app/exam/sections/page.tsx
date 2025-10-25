@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Code, BookOpen, FileText, Clock, CheckCircle, Terminal, Loader2, RefreshCw } from "lucide-react"
+import { Code, BookOpen, FileText, Clock, CheckCircle, Terminal, Loader2, RefreshCw, AlertCircle } from "lucide-react"
 import { MonitoringOverlay } from "@/components/exam/monitoring-overlay"
 import { ViolationTracker } from "@/components/exam/violation-tracker"
 import { 
@@ -28,22 +28,42 @@ export default function ExamSectionsPage() {
   const [allLoaded, setAllLoaded] = useState(false)
 
   // Initialize exam session in Firestore
+  const [sessionError, setSessionError] = useState<string | null>(null)
+  const [isInitializing, setIsInitializing] = useState(false)
+
   useEffect(() => {
     const initializeExam = async () => {
       if (!user) return
+      if (isInitializing) return
       
-      const examId = getCurrentExamId()
-      if (!examId && !sessionLoading) {
-        // No exam session exists, create one
-        const newExamId = await startExam()
-        if (newExamId) {
-          console.log("✅ Created new exam session in Firestore:", newExamId)
+      try {
+        setIsInitializing(true)
+        
+        const { hasFirestoreSession } = await import("@/lib/exam-session")
+        const examId = getCurrentExamId()
+        const hasSession = hasFirestoreSession()
+        
+        // Create session if no examId exists OR if Firestore session flag is not set
+        if (!examId || !hasSession) {
+          console.log("🔧 [SECTIONS] Creating Firestore session", { examId, hasSession })
+          const newExamId = await startExam()
+          if (newExamId) {
+            console.log("✅ [SECTIONS] Created new exam session in Firestore:", newExamId)
+            setSessionError(null)
+          }
+        } else {
+          console.log("✅ [SECTIONS] Using existing exam session:", examId)
         }
+      } catch (error) {
+        console.error("❌ [SECTIONS] Failed to initialize exam:", error)
+        setSessionError(error instanceof Error ? error.message : "Failed to initialize exam session")
+      } finally {
+        setIsInitializing(false)
       }
     }
     
     initializeExam()
-  }, [user, sessionLoading, startExam])
+  }, [user, sessionLoading, startExam, isInitializing])
 
   // Preload all questions in parallel
   useEffect(() => {
@@ -255,6 +275,37 @@ export default function ExamSectionsPage() {
               <p className="text-muted-foreground text-sm">
                 Complete all sections to finish your assessment. You can take them in any order.
               </p>
+              
+              {/* Session Error Display */}
+              {sessionError && (
+                <Card className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-left">
+                      <p className="font-medium text-red-900 dark:text-red-100">Session Initialization Error</p>
+                      <p className="text-sm text-red-700 dark:text-red-200 mt-1">{sessionError}</p>
+                      <Button
+                        onClick={() => window.location.reload()}
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              )}
+              
+              {/* Loading State */}
+              {isInitializing && (
+                <Card className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-center gap-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                    <p className="text-sm text-blue-700 dark:text-blue-200">Initializing exam session...</p>
+                  </div>
+                </Card>
+              )}
             </div>
 
             {/* Section Cards */}
