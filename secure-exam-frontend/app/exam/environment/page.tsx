@@ -8,7 +8,7 @@ import { MonitoringOverlay } from "@/components/exam/monitoring-overlay"
 import { ExamTimer } from "@/components/exam/exam-timer"
 import { ExamQuestions } from "@/components/exam/exam-questions"
 import { ViolationTracker } from "@/components/exam/violation-tracker"
-import { AlertCircle, Maximize, FileText, HelpCircle, Send } from "lucide-react"
+import { AlertCircle, FileText, HelpCircle, Send } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { getQuestionsBySection, getSectionInfo } from "@/lib/question-banks"
 
@@ -19,12 +19,18 @@ export default function ExamEnvironmentPage() {
   const searchParams = useSearchParams()
   const section = searchParams.get("section") || "mcq1"
   
+  // Redirect to coding page if coding section is selected
+  useEffect(() => {
+    if (section === "coding") {
+      router.push("/exam/coding")
+    }
+  }, [section, router])
+  
   const QUESTIONS = getQuestionsBySection(section)
   const sectionInfo = getSectionInfo(section)
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [questionStatus, setQuestionStatus] = useState<Record<number, QuestionStatus>>({})
   const [showWarning, setShowWarning] = useState(false)
-  const [isFullscreen, setIsFullscreen] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
 
   useEffect(() => {
@@ -94,16 +100,6 @@ export default function ExamEnvironmentPage() {
 
   const handleSubmit = () => {
     router.push("/exam/submission")
-  }
-
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen()
-      setIsFullscreen(true)
-    } else {
-      document.exitFullscreen()
-      setIsFullscreen(false)
-    }
   }
 
   // Calculate statistics
@@ -180,11 +176,6 @@ export default function ExamEnvironmentPage() {
                 </div>
               </DialogContent>
             </Dialog>
-
-            <Button variant="outline" size="sm" onClick={toggleFullscreen} className="gap-2">
-              <Maximize className="h-4 w-4" />
-              {isFullscreen ? "Exit" : "Fullscreen"}
-            </Button>
 
             <Button onClick={handleSubmit} className="gap-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-lg">
               <Send className="h-4 w-4" />
@@ -328,6 +319,7 @@ export default function ExamEnvironmentPage() {
                 onMarkForReview={handleMarkForReview}
                 onClearResponse={handleClearResponse}
                 onQuestionVisit={handleQuestionVisit}
+                onBackToSections={() => router.push("/exam/sections")}
               />
             </div>
           </div>

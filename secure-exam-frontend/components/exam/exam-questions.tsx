@@ -25,6 +25,7 @@ interface ExamQuestionsProps {
   onMarkForReview: (questionId: number) => void
   onClearResponse: (questionId: number) => void
   onQuestionVisit: (questionId: number) => void
+  onBackToSections: () => void
 }
 
 export function ExamQuestions({ 
@@ -34,7 +35,8 @@ export function ExamQuestions({
   onAnswerChange, 
   onMarkForReview,
   onClearResponse,
-  onQuestionVisit
+  onQuestionVisit,
+  onBackToSections
 }: ExamQuestionsProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0)
 
@@ -72,7 +74,9 @@ export function ExamQuestions({
   }
 
   const handlePrevious = () => {
-    if (currentQuestion > 0) {
+    if (currentQuestion === 0) {
+      onBackToSections()
+    } else {
       setCurrentQuestion(currentQuestion - 1)
     }
   }
@@ -190,12 +194,11 @@ export function ExamQuestions({
       <div className="flex gap-3">
         <Button
           onClick={handlePrevious}
-          disabled={currentQuestion === 0}
           variant="outline"
-          className="flex-1 h-12 gap-2 text-base font-semibold disabled:opacity-50"
+          className="flex-1 h-12 gap-2 text-base font-semibold"
         >
           <ChevronLeft className="h-5 w-5" />
-          Previous
+          {currentQuestion === 0 ? "Back to Sections" : "Previous"}
         </Button>
         
         <Button
