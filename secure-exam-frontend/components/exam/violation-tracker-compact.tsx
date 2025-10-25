@@ -1,42 +1,34 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { AlertTriangle, Monitor, UserX, Volume2, Eye, Headphones } from "lucide-react"
+import { useViolations } from "@/lib/hooks/use-violations"
+import type { SectionType } from "@/lib/types/exam-types"
 
-interface ViolationData {
-  tabSwitch: number
-  personOutOfFrame: number
-  voiceDetection: number
-  lookingAway: number
-  headphonesDetected: boolean
+interface ViolationTrackerCompactProps {
+  currentSection?: SectionType
 }
 
-const VIOLATION_LIMITS = {
-  tabSwitch: 3,
-  personOutOfFrame: 5,
-  voiceDetection: 3,
-  lookingAway: 10,
-}
-
-export function ViolationTrackerCompact() {
-  const [violations, setViolations] = useState<ViolationData>({
-    tabSwitch: 0,
-    personOutOfFrame: 0,
-    voiceDetection: 0,
-    lookingAway: 0,
-    headphonesDetected: false,
-  })
+export function ViolationTrackerCompact({ currentSection = "mcq1" }: ViolationTrackerCompactProps) {
+  const {
+    violationCounts,
+    logViolationEvent,
+    VIOLATION_LIMITS,
+  } = useViolations(currentSection)
 
   useEffect(() => {
     // Track tab visibility changes
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        setViolations((prev) => ({
-          ...prev,
-          tabSwitch: Math.min(prev.tabSwitch + 1, VIOLATION_LIMITS.tabSwitch),
-        }))
+        logViolationEvent(
+          "tab-switch",
+          "User switched tabs or minimized window",
+          "high",
+          undefined,
+          true
+        )
       }
     }
 
@@ -45,28 +37,16 @@ export function ViolationTrackerCompact() {
     // Simulate other violations for demo
     const simulationInterval = setInterval(() => {
       if (Math.random() > 0.95) {
-        setViolations((prev) => ({
-          ...prev,
-          personOutOfFrame: Math.min(prev.personOutOfFrame + 1, VIOLATION_LIMITS.personOutOfFrame),
-        }))
+        logViolationEvent("out-of-frame", "Person moved out of camera frame", "medium")
       }
       if (Math.random() > 0.97) {
-        setViolations((prev) => ({
-          ...prev,
-          voiceDetection: Math.min(prev.voiceDetection + 1, VIOLATION_LIMITS.voiceDetection),
-        }))
+        logViolationEvent("voice-detected", "Voice or conversation detected", "high")
       }
       if (Math.random() > 0.96) {
-        setViolations((prev) => ({
-          ...prev,
-          lookingAway: Math.min(prev.lookingAway + 1, VIOLATION_LIMITS.lookingAway),
-        }))
+        logViolationEvent("looking-away", "User looking away from screen", "low")
       }
       if (Math.random() > 0.98) {
-        setViolations((prev) => ({
-          ...prev,
-          headphonesDetected: !prev.headphonesDetected,
-        }))
+        logViolationEvent("headphones", "Headphones detected", "medium")
       }
     }, 5000)
 
@@ -74,7 +54,9 @@ export function ViolationTrackerCompact() {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       clearInterval(simulationInterval)
     }
-  }, [])
+  }, [logViolationEvent])
+
+  const violations = violationCounts
 
   const getViolationColor = (current: number, max: number) => {
     const percentage = (current / max) * 100

@@ -1,4 +1,4 @@
-// Exam Session Management with LocalStorage Caching
+// Exam Session Management with LocalStorage Caching + Firestore Sync
 
 export interface ExamSession {
   examId: string
@@ -15,6 +15,7 @@ export interface ExamSession {
 
 const STORAGE_KEY = "exam_session"
 const EXAM_ID_KEY = "current_exam_id"
+const FIRESTORE_SYNCED_KEY = "firestore_synced"
 
 // Generate unique exam ID
 export function generateExamId(): string {
@@ -158,10 +159,34 @@ export function saveSectionQuestions(section: string, questions: any[]): void {
       if (process.env.NODE_ENV !== 'production') {
         console.log(`💾 [SESSION] Saved ${dedupedQuestions.length} questions for ${section}`)
       }
+      
+      // Sync to Firestore in background (non-blocking)
+      syncQuestionsToFirestore(section, dedupedQuestions).catch(err => {
+        console.error("Failed to sync questions to Firestore:", err)
+      })
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') {
         console.error("❌ [SESSION] Failed to save session:", error)
       }
+    }
+  }
+}
+
+// Sync questions to Firestore (async, non-blocking)
+async function syncQuestionsToFirestore(section: string, questions: any[]): Promise<void> {
+  try {
+    const { saveQuestions } = await import("./firestore-service")
+    const examId = getCurrentExamId()
+    if (examId) {
+      await saveQuestions(examId, section as any, questions)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`☁️ [SESSION] Synced ${questions.length} questions to Firestore for ${section}`)
+      }
+    }
+  } catch (error) {
+    // Silently fail - localStorage is primary
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn("Failed to sync to Firestore:", error)
     }
   }
 }

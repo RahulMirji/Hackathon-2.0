@@ -1,40 +1,33 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { AlertTriangle, Monitor, UserX, Volume2, Eye, Headphones } from "lucide-react"
+import { useViolations } from "@/lib/hooks/use-violations"
+import type { SectionType } from "@/lib/types/exam-types"
 
-interface ViolationData {
-  tabSwitch: number
-  personOutOfFrame: number
-  voiceDetection: number
-  lookingAway: number
-  headphonesDetected: boolean
+interface ViolationTrackerProps {
+  currentSection?: SectionType
 }
 
-const VIOLATION_LIMITS = {
-  tabSwitch: 3,
-  personOutOfFrame: 5,
-  voiceDetection: 3,
-  lookingAway: 10,
-}
-
-export function ViolationTracker() {
-  const [violations, setViolations] = useState<ViolationData>({
-    tabSwitch: 0,
-    personOutOfFrame: 0,
-    voiceDetection: 0,
-    lookingAway: 0,
-    headphonesDetected: false,
-  })
+export function ViolationTracker({ currentSection = "mcq1" }: ViolationTrackerProps) {
+  const {
+    violationCounts,
+    logViolationEvent,
+    isAnyLimitExceeded,
+    VIOLATION_LIMITS,
+  } = useViolations(currentSection)
 
   useEffect(() => {
     // Track tab visibility changes
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        setViolations((prev) => ({
-          ...prev,
-          tabSwitch: Math.min(prev.tabSwitch + 1, VIOLATION_LIMITS.tabSwitch),
-        }))
+        logViolationEvent(
+          "tab-switch",
+          "User switched tabs or minimized window",
+          "high",
+          undefined,
+          true // Log immediately
+        )
       }
     }
 
@@ -44,28 +37,32 @@ export function ViolationTracker() {
     const simulationInterval = setInterval(() => {
       // Randomly simulate violations for demo purposes
       if (Math.random() > 0.95) {
-        setViolations((prev) => ({
-          ...prev,
-          personOutOfFrame: Math.min(prev.personOutOfFrame + 1, VIOLATION_LIMITS.personOutOfFrame),
-        }))
+        logViolationEvent(
+          "out-of-frame",
+          "Person moved out of camera frame",
+          "medium"
+        )
       }
       if (Math.random() > 0.97) {
-        setViolations((prev) => ({
-          ...prev,
-          voiceDetection: Math.min(prev.voiceDetection + 1, VIOLATION_LIMITS.voiceDetection),
-        }))
+        logViolationEvent(
+          "voice-detected",
+          "Voice or conversation detected",
+          "high"
+        )
       }
       if (Math.random() > 0.96) {
-        setViolations((prev) => ({
-          ...prev,
-          lookingAway: Math.min(prev.lookingAway + 1, VIOLATION_LIMITS.lookingAway),
-        }))
+        logViolationEvent(
+          "looking-away",
+          "User looking away from screen",
+          "low"
+        )
       }
       if (Math.random() > 0.98) {
-        setViolations((prev) => ({
-          ...prev,
-          headphonesDetected: !prev.headphonesDetected,
-        }))
+        logViolationEvent(
+          "headphones",
+          "Headphones detected",
+          "medium"
+        )
       }
     }, 5000)
 
@@ -73,7 +70,7 @@ export function ViolationTracker() {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       clearInterval(simulationInterval)
     }
-  }, [])
+  }, [logViolationEvent])
 
   const getViolationColor = (current: number, max: number) => {
     const percentage = (current / max) * 100
@@ -88,6 +85,8 @@ export function ViolationTracker() {
     if (percentage >= 50) return "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800"
     return "bg-green-50 dark:bg-green-950/30 border-green-200 dark:border-green-800"
   }
+
+  const violations = violationCounts
 
   return (
     <div className="bg-white dark:bg-gray-900 border-2 border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden shadow-lg">
@@ -169,10 +168,7 @@ export function ViolationTracker() {
           </span>
         </div>
         {/* Warning Message */}
-      {(violations.tabSwitch >= VIOLATION_LIMITS.tabSwitch ||
-        violations.personOutOfFrame >= VIOLATION_LIMITS.personOutOfFrame ||
-        violations.voiceDetection >= VIOLATION_LIMITS.voiceDetection ||
-        violations.lookingAway >= VIOLATION_LIMITS.lookingAway) && (
+      {isAnyLimitExceeded() && (
           <div className="mt-2 p-3 bg-red-100 dark:bg-red-900/30 border-2 border-red-500 dark:border-red-700 rounded-lg text-xs text-red-800 dark:text-red-200 flex items-start gap-2 animate-pulse">
             <AlertTriangle className="h-4 w-4 flex-shrink-0 mt-0.5" />
             <span className="font-bold">Warning: Maximum violations reached! Your exam may be flagged.</span>
