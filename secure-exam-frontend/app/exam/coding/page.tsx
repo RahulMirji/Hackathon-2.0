@@ -40,13 +40,28 @@ export default function CodingExamPage() {
   const [showTestResults, setShowTestResults] = useState(false)
   const [codingQuestions, setCodingQuestions] = useState<CodingQuestion[]>([])
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true)
+  const [isPyodideLoading, setIsPyodideLoading] = useState(false)
 
   const languages = [
-    { value: "python", label: "Python" },
-    { value: "java", label: "Java" },
-    { value: "cpp", label: "C++" },
-    { value: "c", label: "C" },
+    { value: "python", label: "Python (Browser)" },
+    { value: "javascript", label: "JavaScript (Browser)" },
   ]
+
+  // Preload Pyodide when Python is selected
+  useEffect(() => {
+    if (selectedLanguage === 'python' && !isPyodideLoading) {
+      setIsPyodideLoading(true)
+      import('@/lib/browser-code-executor').then(({ loadPyodide }) => {
+        loadPyodide().then(() => {
+          setIsPyodideLoading(false)
+          console.log('✅ Python runtime ready')
+        }).catch((error) => {
+          console.error('❌ Failed to load Python runtime:', error)
+          setIsPyodideLoading(false)
+        })
+      })
+    }
+  }, [selectedLanguage])
 
   // Load questions on mount
   useEffect(() => {
@@ -138,38 +153,19 @@ export default function CodingExamPage() {
   const getGenericTemplate = (lang: string) => {
     const templates: Record<string, string> = {
       python: `# Read input and solve the problem
+# Use input() to read from stdin
+# Use print() to write to stdout
+
 # Your code here
 
 `,
-      java: `import java.util.*;
+      javascript: `// Read input and solve the problem
+// Use input() to read from stdin
+// Use console.log() to write to stdout
 
-public class Main {
-    public static void main(String[] args) {
-        Scanner sc = new Scanner(System.in);
-        
-        // Your code here
-        
-        sc.close();
-    }
-}`,
-      cpp: `#include <iostream>
-#include <vector>
-#include <string>
-using namespace std;
+// Your code here
 
-int main() {
-    // Your code here
-    
-    return 0;
-}`,
-      c: `#include <stdio.h>
-#include <string.h>
-
-int main() {
-    // Your code here
-    
-    return 0;
-}`
+`
     }
     return templates[lang] || ""
   }
@@ -191,25 +187,16 @@ int main() {
     let totalTime = 0
 
     try {
+      // Use browser-based execution
+      const { executeCode } = await import("@/lib/browser-code-executor")
+      
       for (let i = 0; i < question.testCases.length; i++) {
         const testCase = question.testCases[i]
         
         // Sanitize input
         const sanitizedInput = sanitizeTestInput(testCase.input)
         
-        const response = await fetch("/api/execute-code", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            code,
-            language: selectedLanguage,
-            input: sanitizedInput,
-          }),
-        })
-
-        const result = await response.json()
+        const result = await executeCode(code, selectedLanguage, sanitizedInput)
         totalTime += result.executionTime || 0
 
         if (result.success) {
@@ -219,6 +206,8 @@ int main() {
 
           if (!passed && process.env.NODE_ENV !== 'production') {
             console.log(`Test ${i + 1} failed`)
+            console.log(`Expected: "${expectedOutput}"`)
+            console.log(`Actual: "${actualOutput}"`)
           }
 
           results.push({
@@ -526,10 +515,19 @@ int main() {
                     onClick={handleRun}
                     size="sm"
                     className="gap-2 flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white disabled:opacity-50"
-                    disabled={isRunning}
+                    disabled={isRunning || isPyodideLoading}
                   >
-                    <Play className="h-4 w-4" />
-                    {isRunning ? "Running..." : "Run Test Cases"}
+                    {isRunning || isPyodideLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        {isPyodideLoading ? "Loading Python..." : "Running..."}
+                      </>
+                    ) : (
+                      <>
+                        <Play className="h-4 w-4" />
+                        Run Test Cases
+                      </>
+                    )}
                   </Button>
                 </div>
 
