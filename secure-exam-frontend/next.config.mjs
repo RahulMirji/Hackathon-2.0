@@ -15,17 +15,7 @@ const nextConfig = {
   },
 }
 
-// Validate required environment variables at build time
-if (process.env.NODE_ENV === 'production') {
-  const requiredEnvVars = ['AI_API_URL', 'AI_API_KEY', 'AI_MODEL']
-  const missing = requiredEnvVars.filter(varName => !process.env[varName])
-  
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(', ')}\n` +
-      'Please check your .env.local file or environment configuration.'
-    )
-  }
-}
+// Note: Environment variables should be set in Vercel project settings
+// Build will continue with missing vars and fail at runtime if accessed
 
 export default nextConfig

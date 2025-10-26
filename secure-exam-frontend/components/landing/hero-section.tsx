@@ -1,17 +1,56 @@
 "use client"
 
 import { useRouter } from "next/navigation"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Github } from "lucide-react"
+import { Github, Loader } from "lucide-react"
 import { useInView } from "@/hooks/use-in-view"
 import { useParallax } from "@/hooks/use-parallax"
 
 export function HeroSection() {
   const router = useRouter()
+  const [isNavigating, setIsNavigating] = useState(false)
+  const authCheckRef = useRef<Promise<boolean>>(null as any)
+  
   const { ref: contentRef, inView: contentInView } = useInView<HTMLDivElement>({ threshold: 0.2 })
   const { ref: mockupRef, inView: mockupInView } = useInView<HTMLDivElement>({ threshold: 0.2 })
   const { ref: parallax1Ref, offset: parallax1Offset } = useParallax({ speed: 0.2 })
   const { ref: parallax2Ref, offset: parallax2Offset } = useParallax({ speed: 0.3 })
+
+  const checkAuthAndNavigate = async () => {
+    setIsNavigating(true)
+    try {
+      // Import dynamically to not block initial render
+      const { auth } = await import("@/lib/firebase")
+      const { onAuthStateChanged } = await import("firebase/auth")
+      
+      // Check current auth state (non-blocking)
+      const currentUser = auth.currentUser
+      
+      if (currentUser) {
+        router.push("/exam/compatibility-check")
+      } else {
+        router.push("/auth/login")
+      }
+    } catch (error) {
+      console.error("Auth check failed:", error)
+      // Default to login on error
+      router.push("/auth/login")
+    }
+  }
+
+  const handleTryDemo = () => {
+    // Immediate UI feedback
+    setIsNavigating(true)
+    // Use requestAnimationFrame for instant responsiveness
+    requestAnimationFrame(() => {
+      checkAuthAndNavigate()
+    })
+  }
+
+  const handleGithub = () => {
+    window.open("https://github.com/RahulMirji/Hackathon-2.0.git", "_blank")
+  }
 
   return (
     <section id="home" className="relative min-h-screen flex items-center justify-center pt-20 px-4 overflow-hidden">
@@ -52,23 +91,23 @@ export function HeroSection() {
                 
                 <Button
                   size="lg"
-                  onClick={() => {
-                    // Check if user is logged in by checking for auth token
-                    const token = document.cookie.split('; ').find(row => row.startsWith('authToken='));
-                    if (token) {
-                      // User is logged in, proceed to exam
-                      router.push("/exam/compatibility-check");
-                    } else {
-                      // User not logged in, redirect to login
-                      router.push("/auth/login");
-                    }
-                  }}
-                  className="relative w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-bold shadow-2xl hover:shadow-3xl transition-all duration-300 rounded-2xl px-12 py-8 text-xl md:text-2xl cursor-pointer animate-float"
+                  onClick={handleTryDemo}
+                  disabled={isNavigating}
+                  className="relative w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-bold shadow-2xl hover:shadow-3xl transition-all duration-300 rounded-2xl px-12 py-8 text-xl md:text-2xl cursor-pointer animate-float disabled:opacity-70"
                 >
                   <span className="flex items-center justify-center gap-3">
-                    <span className="text-3xl">🎯</span>
-                    Try Demo Exam Now
-                    <span className="text-3xl">→</span>
+                    {isNavigating ? (
+                      <>
+                        <Loader size={24} className="animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-3xl">🎯</span>
+                        Try Demo Exam Now
+                        <span className="text-3xl">→</span>
+                      </>
+                    )}
                   </span>
                 </Button>
               </div>
@@ -77,7 +116,7 @@ export function HeroSection() {
               <Button
                 size="lg"
                 variant="outline"
-                onClick={() => window.open("https://github.com/RahulMirji/Hackathon-2.0.git", "_blank")}
+                onClick={handleGithub}
                 className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-bold rounded-2xl px-12 py-8 text-xl md:text-2xl transition-all duration-300 bg-white hover-scale-105 hover:shadow-xl cursor-pointer"
               >
                 <span className="flex items-center justify-center gap-3">

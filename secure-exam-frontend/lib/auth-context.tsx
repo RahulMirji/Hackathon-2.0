@@ -1,8 +1,7 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged } from 'firebase/auth';
-import { auth } from './firebase';
+import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { User } from 'firebase/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -14,17 +13,37 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
 });
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
-      setUser(user);
-      setLoading(false);
-    });
+    // Lazy load Firebase to not block initial render
+    let unsubscribe: (() => void) | undefined;
 
-    return unsubscribe;
+    const loadAuth = async () => {
+      try {
+        const { auth } = await import('./firebase');
+        const { onAuthStateChanged } = await import('firebase/auth');
+
+        unsubscribe = onAuthStateChanged(auth, (user) => {
+          setUser(user);
+          setLoading(false);
+        });
+      } catch (error) {
+        console.error('Failed to load auth:', error);
+        setLoading(false);
+      }
+    };
+
+    // Start loading auth but don't wait for it
+    loadAuth();
+
+    return () => {
+      if (unsubscribe) {
+        unsubscribe();
+      }
+    };
   }, []);
 
   return (
