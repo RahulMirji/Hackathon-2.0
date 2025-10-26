@@ -2,6 +2,14 @@
 
 <div align="center">
 
+## 🚀 LIVE DEPLOYMENT
+
+### **[👉 Visit Our Live Demo →](https://hackathon-2-0-seven.vercel.app/landing)**
+
+**Status**: ✅ Production Ready | **Hosted on**: Vercel | **Updated**: October 26, 2025
+
+---
+
 [![Next.js](https://img.shields.io/badge/Next.js-15.1-black?style=flat-square&logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-Latest-FFA500?style=flat-square&logo=firebase)](https://firebase.google.com/)
@@ -10,7 +18,7 @@
 
 **Next-generation AI-powered exam proctoring with real-time monitoring, identity verification, and intelligent integrity scoring.**
 
-[🌐 Live Demo](#deployment) • [📚 Documentation](#documentation) • [🚀 Getting Started](#getting-started) • [🤝 Contributing](#contributing)
+[🌐 Live Demo](https://hackathon-2-0-seven.vercel.app/landing) • [📚 Documentation](#documentation) • [🚀 Getting Started](#getting-started) • [🤝 Contributing](#contributing)
 
 </div>
 
