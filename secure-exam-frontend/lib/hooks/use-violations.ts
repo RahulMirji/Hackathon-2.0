@@ -14,13 +14,13 @@ interface ViolationCounts {
 }
 
 const VIOLATION_LIMITS = {
-  tabSwitch: 3,
-  personOutOfFrame: 5,
+  tabSwitch: 5,
+  personOutOfFrame: 3,
   voiceDetection: 3,
   lookingAway: 10,
 }
 
-export function useViolations(currentSection: SectionType) {
+export function useViolations(currentSection: SectionType, onViolationLimitExceeded?: () => void) {
   const [violations, setViolations] = useState<ViolationDocument[]>([])
   const [violationCounts, setViolationCounts] = useState<ViolationCounts>({
     tabSwitch: 0,
@@ -32,6 +32,7 @@ export function useViolations(currentSection: SectionType) {
   const [loading, setLoading] = useState(true)
   const pendingViolations = useRef<Array<() => Promise<void>>>([])
   const isFlushing = useRef(false)
+  const hasTriggeredTermination = useRef(false)
 
   // Subscribe to violations
   useEffect(() => {
@@ -75,12 +76,21 @@ export function useViolations(currentSection: SectionType) {
 
       setViolationCounts(counts)
       setLoading(false)
+      
+      // Check if critical limits exceeded and trigger termination
+      if (!hasTriggeredTermination.current && onViolationLimitExceeded) {
+        if (counts.tabSwitch >= VIOLATION_LIMITS.tabSwitch || 
+            counts.personOutOfFrame >= VIOLATION_LIMITS.personOutOfFrame) {
+          hasTriggeredTermination.current = true
+          onViolationLimitExceeded()
+        }
+      }
     })
 
     return () => unsubscribe()
-  }, [])
+  }, [onViolationLimitExceeded])
 
-  // Batch flush violations every 5 seconds
+  // Batch flush violations every 30 seconds (reduced from 5 to save quota)
   useEffect(() => {
     const flushInterval = setInterval(async () => {
       if (pendingViolations.current.length > 0 && !isFlushing.current) {
@@ -96,7 +106,7 @@ export function useViolations(currentSection: SectionType) {
           isFlushing.current = false
         }
       }
-    }, 5000)
+    }, 30000) // Increased from 5000 to reduce Firebase writes
 
     return () => clearInterval(flushInterval)
   }, [])

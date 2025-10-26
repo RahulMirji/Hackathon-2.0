@@ -77,7 +77,13 @@ export default function ExamSubmissionPage() {
       // Parse error to provide specific guidance
       const errorMsg = error instanceof Error ? error.message : String(error)
 
-      if (errorMsg.includes("session not found") || errorMsg.includes("does not exist")) {
+      if (errorMsg.includes("quota") || errorMsg.includes("Quota exceeded") || errorMsg.includes("resource-exhausted")) {
+        setMessage(
+          `Firebase quota exceeded. The database has reached its daily limit. ` +
+          `Your exam data is saved locally. Please try again in 24 hours or contact support. ` +
+          `Exam ID: ${examId}`
+        )
+      } else if (errorMsg.includes("session not found") || errorMsg.includes("does not exist")) {
         setMessage(
           `Exam session not found. The session may not have been properly initialized. ` +
           `Exam ID: ${examId}. Please contact support or try returning to the sections page.`

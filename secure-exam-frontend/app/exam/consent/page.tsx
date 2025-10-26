@@ -26,8 +26,27 @@ export default function ConsentPage() {
   const [finalConsent, setFinalConsent] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     setIsLoading(true)
+    
+    // Request fullscreen mode
+    try {
+      const elem = document.documentElement
+      if (elem.requestFullscreen) {
+        await elem.requestFullscreen()
+      } else if ((elem as any).webkitRequestFullscreen) {
+        // Safari
+        await (elem as any).webkitRequestFullscreen()
+      } else if ((elem as any).msRequestFullscreen) {
+        // IE11
+        await (elem as any).msRequestFullscreen()
+      }
+    } catch (error) {
+      console.error("Failed to enter fullscreen:", error)
+      // Continue anyway even if fullscreen fails
+    }
+    
+    // Navigate to sections page
     router.push("/exam/sections")
   }
 

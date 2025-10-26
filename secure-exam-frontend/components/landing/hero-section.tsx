@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Play } from "lucide-react"
+import { Github } from "lucide-react"
 import { useInView } from "@/hooks/use-in-view"
 import { useParallax } from "@/hooks/use-parallax"
 
@@ -44,21 +44,46 @@ export function HeroSection() {
             </div>
 
             {/* CTA Buttons */}
-            <div className={`flex flex-col sm:flex-row gap-4 pt-4 slide-up stagger-3 ${contentInView ? 'in-view' : ''}`}>
-              <Button
-                size="lg"
-                onClick={() => router.push("/exam/compatibility-check")}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 rounded-lg px-8 py-6 text-base hover-scale-105 hover-brightness"
-              >
-                Try Demo Exam
-              </Button>
+            <div className={`flex flex-col gap-4 pt-4 slide-up stagger-3 ${contentInView ? 'in-view' : ''}`}>
+              {/* Main CTA Button - Extra Prominent */}
+              <div className="relative">
+                {/* Glowing background effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl blur-xl opacity-50 animate-pulse-glow"></div>
+                
+                <Button
+                  size="lg"
+                  onClick={() => {
+                    // Check if user is logged in by checking for auth token
+                    const token = document.cookie.split('; ').find(row => row.startsWith('authToken='));
+                    if (token) {
+                      // User is logged in, proceed to exam
+                      router.push("/exam/compatibility-check");
+                    } else {
+                      // User not logged in, redirect to login
+                      router.push("/auth/login");
+                    }
+                  }}
+                  className="relative w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-bold shadow-2xl hover:shadow-3xl transition-all duration-300 rounded-2xl px-12 py-8 text-xl md:text-2xl cursor-pointer animate-float"
+                >
+                  <span className="flex items-center justify-center gap-3">
+                    <span className="text-3xl">🎯</span>
+                    Try Demo Exam Now
+                    <span className="text-3xl">→</span>
+                  </span>
+                </Button>
+              </div>
+
+              {/* GitHub Button - Below */}
               <Button
                 size="lg"
                 variant="outline"
-                className="border-2 border-blue-600 text-blue-600 hover:bg-blue-50 font-semibold rounded-lg px-8 py-6 text-base transition-all duration-300 bg-transparent hover-scale-105"
+                onClick={() => window.open("https://github.com/RahulMirji/Hackathon-2.0.git", "_blank")}
+                className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-bold rounded-2xl px-12 py-8 text-xl md:text-2xl transition-all duration-300 bg-white hover-scale-105 hover:shadow-xl cursor-pointer"
               >
-                <Play size={20} />
-                Watch Overview
+                <span className="flex items-center justify-center gap-3">
+                  <Github size={28} />
+                  View on GitHub
+                </span>
               </Button>
             </div>
           </div>

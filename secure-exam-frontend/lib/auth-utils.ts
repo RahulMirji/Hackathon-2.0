@@ -9,7 +9,7 @@ export async function logout() {
     document.cookie = 'authToken=; path=/; max-age=0';
     // Sign out from Firebase
     await signOut(auth);
-    window.location.href = '/auth/login';
+    window.location.href = '/landing';
   } catch (error) {
     console.error('Error signing out:', error);
   }

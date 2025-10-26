@@ -13,12 +13,15 @@ export function AuthButton() {
   }
 
   if (user) {
+    // Get display name, fallback to email name part if not available
+    const displayName = user.displayName || user.email?.split('@')[0] || 'User';
+    
     return (
       <div className="flex items-center gap-3 bg-background/80 backdrop-blur-lg border border-border rounded-full px-4 py-2 shadow-lg">
         <div className="flex items-center gap-2">
           <User size={16} className="text-primary" />
           <span className="text-sm font-medium hidden sm:inline max-w-[150px] truncate">
-            {user.email}
+            {displayName}
           </span>
         </div>
         <button
