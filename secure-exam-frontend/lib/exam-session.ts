@@ -1,4 +1,4 @@
-// Exam Session Management with LocalStorage Caching
+// Exam Session Management with LocalStorage Caching + Firestore Sync
 
 export interface ExamSession {
   examId: string
@@ -15,14 +15,23 @@ export interface ExamSession {
 
 const STORAGE_KEY = "exam_session"
 const EXAM_ID_KEY = "current_exam_id"
+const FIRESTORE_SESSION_CREATED_KEY = "firestore_session_created"
 
 // Generate unique exam ID
 export function generateExamId(): string {
   return `exam_${Date.now()}_${Math.random().toString(36).substring(7)}`
 }
 
-// Get current exam ID or create new one
-export function getCurrentExamId(): string {
+// Get current exam ID (returns null if doesn't exist)
+export function getCurrentExamId(): string | null {
+  if (typeof window === "undefined") return null
+
+  const examId = localStorage.getItem(EXAM_ID_KEY)
+  return examId || null
+}
+
+// Ensure exam ID exists (creates one if needed)
+export function ensureExamId(): string {
   if (typeof window === "undefined") return ""
 
   let examId = localStorage.getItem(EXAM_ID_KEY)
@@ -36,6 +45,18 @@ export function getCurrentExamId(): string {
   return examId
 }
 
+// Check if Firestore session exists
+export function hasFirestoreSession(): boolean {
+  if (typeof window === "undefined") return false
+  return localStorage.getItem(FIRESTORE_SESSION_CREATED_KEY) === "true"
+}
+
+// Set Firestore session created flag
+export function setFirestoreSessionCreated(created: boolean): void {
+  if (typeof window === "undefined") return
+  localStorage.setItem(FIRESTORE_SESSION_CREATED_KEY, created ? "true" : "false")
+}
+
 // Start new exam (generates new ID)
 export function startNewExam(): string {
   if (typeof window === "undefined") return ""
@@ -43,6 +64,7 @@ export function startNewExam(): string {
   const examId = generateExamId()
   localStorage.setItem(EXAM_ID_KEY, examId)
   localStorage.removeItem(STORAGE_KEY) // Clear old session
+  localStorage.removeItem(FIRESTORE_SESSION_CREATED_KEY) // Clear Firestore flag
   if (process.env.NODE_ENV !== 'production') {
     console.log("🎬 [SESSION] Started new exam:", examId)
   }
@@ -107,7 +129,7 @@ function normalizeTitle(title: string): string {
 
 // Save questions for a specific section with deduplication
 export function saveSectionQuestions(section: string, questions: any[]): void {
-  const examId = getCurrentExamId()
+  const examId = ensureExamId()
   let session = getExamSession()
 
   if (!session || session.examId !== examId) {
@@ -158,10 +180,34 @@ export function saveSectionQuestions(section: string, questions: any[]): void {
       if (process.env.NODE_ENV !== 'production') {
         console.log(`💾 [SESSION] Saved ${dedupedQuestions.length} questions for ${section}`)
       }
+      
+      // Sync to Firestore in background (non-blocking)
+      syncQuestionsToFirestore(section, dedupedQuestions).catch(err => {
+        console.error("Failed to sync questions to Firestore:", err)
+      })
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') {
         console.error("❌ [SESSION] Failed to save session:", error)
       }
+    }
+  }
+}
+
+// Sync questions to Firestore (async, non-blocking)
+async function syncQuestionsToFirestore(section: string, questions: any[]): Promise<void> {
+  try {
+    const { saveQuestions } = await import("./firestore-service")
+    const examId = ensureExamId()
+    if (examId) {
+      await saveQuestions(examId, section as any, questions)
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`☁️ [SESSION] Synced ${questions.length} questions to Firestore for ${section}`)
+      }
+    }
+  } catch (error) {
+    // Silently fail - localStorage is primary
+    if (process.env.NODE_ENV !== 'production') {
+      console.warn("Failed to sync to Firestore:", error)
     }
   }
 }
@@ -186,6 +232,7 @@ export function clearExamSession(): void {
 
   localStorage.removeItem(STORAGE_KEY)
   localStorage.removeItem(EXAM_ID_KEY)
+  localStorage.removeItem(FIRESTORE_SESSION_CREATED_KEY)
   if (process.env.NODE_ENV !== 'production') {
     console.log("🗑️ [SESSION] Cleared exam session")
   }

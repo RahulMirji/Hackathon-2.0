@@ -4,26 +4,70 @@ import { useRouter } from "next/navigation"
 import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Code, BookOpen, FileText, Clock, CheckCircle, Terminal, Loader2, RefreshCw } from "lucide-react"
+import { Code, BookOpen, FileText, Clock, CheckCircle, Terminal, Loader2, AlertCircle } from "lucide-react"
 import { MonitoringOverlay } from "@/components/exam/monitoring-overlay"
 import { ViolationTracker } from "@/components/exam/violation-tracker"
 import { 
   getCurrentExamId, 
   getSectionQuestions,
   areAllSectionsLoaded,
-  clearExamSession,
-  getExamSession,
-  saveExamSession 
 } from "@/lib/exam-session"
 import { getOrLoadSectionQuestions } from "@/lib/question-service"
 import { createLogger } from "@/lib/utils"
+import { useExamSession } from "@/lib/hooks/use-exam-session"
+import { useAuth } from "@/lib/auth-context"
 
 export default function ExamSectionsPage() {
   const router = useRouter()
+  const { user } = useAuth()
+  const { examSession, startExam, loading: sessionLoading } = useExamSession()
   const [loadingStatus, setLoadingStatus] = useState<Record<string, boolean>>({})
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({})
   const [questionSources, setQuestionSources] = useState<Record<string, "api" | "mock" | "cache" | "ai">>({})
   const [allLoaded, setAllLoaded] = useState(false)
+
+  // Initialize exam session in Firestore
+  const [sessionError, setSessionError] = useState<string | null>(null)
+  const [isInitializing, setIsInitializing] = useState(false)
+  const [sessionInitialized, setSessionInitialized] = useState(false)
+
+  useEffect(() => {
+    const initializeExam = async () => {
+      if (!user) return
+      if (isInitializing || sessionInitialized) return
+      
+      try {
+        const { hasFirestoreSession } = await import("@/lib/exam-session")
+        const examId = getCurrentExamId()
+        const hasSession = hasFirestoreSession()
+        
+        // If session already exists, just mark as initialized without showing UI
+        if (examId && hasSession) {
+          console.log("✅ [SECTIONS] Using existing exam session:", examId)
+          setSessionInitialized(true)
+          return
+        }
+        
+        // Only show initializing UI if we actually need to create a session
+        setIsInitializing(true)
+        
+        console.log("🔧 [SECTIONS] Creating Firestore session", { examId, hasSession })
+        const newExamId = await startExam()
+        if (newExamId) {
+          console.log("✅ [SECTIONS] Created new exam session in Firestore:", newExamId)
+          setSessionError(null)
+          setSessionInitialized(true)
+        }
+      } catch (error) {
+        console.error("❌ [SECTIONS] Failed to initialize exam:", error)
+        setSessionError(error instanceof Error ? error.message : "Failed to initialize exam session")
+      } finally {
+        setIsInitializing(false)
+      }
+    }
+    
+    initializeExam()
+  }, [user, startExam])
 
   // Preload all questions in parallel
   useEffect(() => {
@@ -188,15 +232,6 @@ export default function ExamSectionsPage() {
     router.push(`/exam/${sectionId}`)
   }
 
-  const handleClearCache = () => {
-    if (confirm("Clear all cached questions and reload? This will generate fresh questions.")) {
-      clearExamSession()
-      window.location.reload()
-    }
-  }
-
-
-
   return (
     <main className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800">
       {/* Header */}
@@ -210,17 +245,6 @@ export default function ExamSectionsPage() {
               <h1 className="font-bold text-xl">Computer Science - Final Assessment</h1>
               <p className="text-sm text-muted-foreground">Select a section to begin your exam</p>
             </div>
-            {process.env.NODE_ENV !== 'production' && (
-              <Button
-                onClick={handleClearCache}
-                variant="outline"
-                size="sm"
-                className="gap-2"
-              >
-                <RefreshCw className="h-4 w-4" />
-                Clear Cache & Reload
-              </Button>
-            )}
           </div>
         </div>
       </div>
@@ -235,6 +259,37 @@ export default function ExamSectionsPage() {
               <p className="text-muted-foreground text-sm">
                 Complete all sections to finish your assessment. You can take them in any order.
               </p>
+              
+              {/* Session Error Display */}
+              {sessionError && (
+                <Card className="mt-4 p-4 bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-left">
+                      <p className="font-medium text-red-900 dark:text-red-100">Session Initialization Error</p>
+                      <p className="text-sm text-red-700 dark:text-red-200 mt-1">{sessionError}</p>
+                      <Button
+                        onClick={() => window.location.reload()}
+                        variant="outline"
+                        size="sm"
+                        className="mt-2"
+                      >
+                        Retry
+                      </Button>
+                    </div>
+                  </div>
+                </Card>
+              )}
+              
+              {/* Loading State */}
+              {isInitializing && (
+                <Card className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-center gap-3">
+                    <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+                    <p className="text-sm text-blue-700 dark:text-blue-200">Initializing exam session...</p>
+                  </div>
+                </Card>
+              )}
             </div>
 
             {/* Section Cards */}
@@ -279,7 +334,7 @@ export default function ExamSectionsPage() {
                       {!loadingStatus[section.id] ? (
                         <>
                           <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          {questionCounts[section.id] ? `Generating ${questionCounts[section.id]}/${section.questions}...` : 'Loading...'}
+                          {questionCounts[section.id] ? `Loading ${questionCounts[section.id]}/${section.questions}...` : 'Loading...'}
                         </>
                       ) : (
                         <>
@@ -287,15 +342,6 @@ export default function ExamSectionsPage() {
                         </>
                       )}
                     </Button>
-                    
-                    {loadingStatus[section.id] && questionSources[section.id] && (
-                      <div className="text-[10px] text-center text-muted-foreground">
-                        {questionSources[section.id] === "api" && `✓ ${questionCounts[section.id]}/${section.questions} AI Generated`}
-                        {questionSources[section.id] === "ai" && `✓ ${questionCounts[section.id]}/${section.questions} AI Generated`}
-                        {questionSources[section.id] === "mock" && "⚠ Using Fallback"}
-                        {questionSources[section.id] === "cache" && `✓ ${questionCounts[section.id]}/${section.questions} Cached`}
-                      </div>
-                    )}
                   </div>
                 </div>
               </Card>

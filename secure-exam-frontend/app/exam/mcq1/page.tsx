@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { getSectionInfo } from "@/lib/question-banks"
 import { getSectionQuestions } from "@/lib/exam-session"
 import { getOrLoadSectionQuestions } from "@/lib/question-service"
+import { useExamSession } from "@/lib/hooks/use-exam-session"
+import { useExamAnswers } from "@/lib/hooks/use-exam-answers"
 
 type QuestionStatus = "not-visited" | "not-answered" | "answered" | "marked-review" | "answered-marked"
 
@@ -30,6 +32,30 @@ export default function MCQ1Page() {
   const [showWarning, setShowWarning] = useState(false)
   const [showInstructions, setShowInstructions] = useState(false)
   
+  // Firestore hooks
+  const { startExamSection } = useExamSession()
+  const { saveAnswerDebounced, startQuestionTimer } = useExamAnswers(section)
+  
+  // Session initialization state
+  const [sessionInitialized, setSessionInitialized] = useState(false)
+  const [sessionError, setSessionError] = useState<string | null>(null)
+  
+  // Mark section as started in Firestore
+  useEffect(() => {
+    const initializeSection = async () => {
+      try {
+        await startExamSection(section)
+        setSessionInitialized(true)
+        setSessionError(null)
+      } catch (error) {
+        console.error("❌ [MCQ1] Failed to initialize section:", error)
+        setSessionError(error instanceof Error ? error.message : "Failed to initialize section")
+      }
+    }
+    
+    initializeSection()
+  }, [startExamSection, section])
+
   // Load questions after mount
   useEffect(() => {
     const loadQuestions = async () => {
@@ -81,17 +107,30 @@ export default function MCQ1Page() {
     // Update status based on answer
     setQuestionStatus((prev) => {
       const currentStatus = prev[questionId]
+      let newStatus: QuestionStatus
+      
       if (answer) {
         if (currentStatus === "marked-review") {
-          return { ...prev, [questionId]: "answered-marked" }
+          newStatus = "answered-marked"
+        } else {
+          newStatus = "answered"
         }
-        return { ...prev, [questionId]: "answered" }
       } else {
         if (currentStatus === "answered-marked") {
-          return { ...prev, [questionId]: "marked-review" }
+          newStatus = "marked-review"
+        } else {
+          newStatus = "not-answered"
         }
-        return { ...prev, [questionId]: "not-answered" }
       }
+      
+      // Save to Firestore only if session is initialized
+      if (sessionInitialized) {
+        const questionIdStr = `${section}_q${questionId}`
+        const markedForReview = newStatus === "marked-review" || newStatus === "answered-marked"
+        saveAnswerDebounced(questionIdStr, questionId, answer, newStatus, markedForReview)
+      }
+      
+      return { ...prev, [questionId]: newStatus }
     })
   }
 
@@ -119,13 +158,16 @@ export default function MCQ1Page() {
   }
 
   const handleQuestionVisit = useCallback((questionId: number) => {
+    // Start timer for this question
+    startQuestionTimer(questionId)
+    
     setQuestionStatus((prev) => {
       if (prev[questionId] === "not-visited") {
         return { ...prev, [questionId]: "not-answered" }
       }
       return prev
     })
-  }, [])
+  }, [startQuestionTimer])
 
   const handleTimeUp = () => {
     setShowWarning(true)
@@ -150,6 +192,29 @@ export default function MCQ1Page() {
         <Card className="p-8">
           <div className="text-center">
             <p className="text-lg font-semibold">Loading questions...</p>
+          </div>
+        </Card>
+      </main>
+    )
+  }
+  
+  // Show session error if initialization failed
+  if (sessionError) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
+        <Card className="p-8 max-w-md">
+          <div className="text-center space-y-4">
+            <AlertCircle className="h-12 w-12 text-red-600 mx-auto" />
+            <h2 className="text-xl font-bold text-red-600">Session Error</h2>
+            <p className="text-sm text-muted-foreground">{sessionError}</p>
+            <div className="flex gap-2">
+              <Button onClick={() => window.location.reload()} variant="default" className="flex-1">
+                Retry
+              </Button>
+              <Button onClick={() => router.push("/exam/sections")} variant="outline" className="flex-1">
+                Back to Sections
+              </Button>
+            </div>
           </div>
         </Card>
       </main>
