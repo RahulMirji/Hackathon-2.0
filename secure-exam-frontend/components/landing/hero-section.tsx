@@ -146,9 +146,9 @@ export function HeroSection() {
                   size="lg"
                   onClick={handleTryDemo}
                   disabled={isNavigating}
-                  className="relative w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-bold shadow-2xl hover:shadow-3xl transition-all duration-300 rounded-2xl px-12 py-8 text-xl md:text-2xl cursor-pointer animate-float disabled:opacity-70"
+                  className="relative w-full bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-700 hover:to-cyan-600 text-white font-bold shadow-2xl hover:shadow-3xl transition-all duration-300 rounded-2xl px-12 py-8 text-xl md:text-2xl cursor-pointer animate-float disabled:opacity-70 pointer-events-auto"
                 >
-                  <span className="flex items-center justify-center gap-3">
+                  <span className="flex items-center justify-center gap-3 pointer-events-none">
                     {isNavigating ? (
                       <>
                         <Loader size={24} className="animate-spin" />
@@ -170,9 +170,9 @@ export function HeroSection() {
                 size="lg"
                 variant="outline"
                 onClick={handleGithub}
-                className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-bold rounded-2xl px-12 py-8 text-xl md:text-2xl transition-all duration-300 bg-white hover-scale-105 hover:shadow-xl cursor-pointer"
+                className="w-full border-2 border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white font-bold rounded-2xl px-12 py-8 text-xl md:text-2xl transition-all duration-300 bg-white hover-scale-105 hover:shadow-xl cursor-pointer pointer-events-auto"
               >
-                <span className="flex items-center justify-center gap-3">
+                <span className="flex items-center justify-center gap-3 pointer-events-none">
                   <Github size={28} />
                   View on GitHub
                 </span>
