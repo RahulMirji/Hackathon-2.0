@@ -145,7 +145,7 @@ export default function IDVerificationPage() {
 
   const handleContinue = () => {
     setIsLoading(true)
-    router.push("/exam/consent")
+    router.push("/exam/verification-confirmation")
   }
 
   return (

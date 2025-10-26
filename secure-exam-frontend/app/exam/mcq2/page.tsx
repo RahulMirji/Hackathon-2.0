@@ -26,6 +26,12 @@ export default function MCQ2Page() {
   const [questions, setQuestions] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
   
+  // Handle violation limit exceeded
+  const handleViolationLimitExceeded = useCallback(() => {
+    // Navigate to termination page
+    router.push("/exam/terminated")
+  }, [router])
+  
   const sectionInfo = getSectionInfo(section)
   const [answers, setAnswers] = useState<Record<number, string>>({})
   const [questionStatus, setQuestionStatus] = useState<Record<number, QuestionStatus>>({})
@@ -433,6 +439,8 @@ export default function MCQ2Page() {
                 onClearResponse={handleClearResponse}
                 onQuestionVisit={handleQuestionVisit}
                 onBackToSections={() => router.push("/exam/sections")}
+                nextSectionRoute="/exam/mcq3"
+                onNavigateToNextSection={() => router.push("/exam/mcq3")}
               />
             </div>
           </div>
@@ -445,7 +453,10 @@ export default function MCQ2Page() {
               </Card>
 
               {/* Violation Tracker */}
-              <ViolationTracker />
+              <ViolationTracker 
+                currentSection={section}
+                onViolationLimitExceeded={handleViolationLimitExceeded}
+              />
             </div>
           </div>
         </div>

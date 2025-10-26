@@ -9,14 +9,18 @@ import type { SectionType } from "@/lib/types/exam-types"
 
 interface ViolationTrackerCompactProps {
   currentSection?: SectionType
+  onViolationLimitExceeded?: () => void
 }
 
-export function ViolationTrackerCompact({ currentSection = "mcq1" }: ViolationTrackerCompactProps) {
+export function ViolationTrackerCompact({ 
+  currentSection = "mcq1",
+  onViolationLimitExceeded 
+}: ViolationTrackerCompactProps) {
   const {
     violationCounts,
     logViolationEvent,
     VIOLATION_LIMITS,
-  } = useViolations(currentSection)
+  } = useViolations(currentSection, onViolationLimitExceeded)
 
   useEffect(() => {
     // Track tab visibility changes
@@ -34,7 +38,9 @@ export function ViolationTrackerCompact({ currentSection = "mcq1" }: ViolationTr
 
     document.addEventListener("visibilitychange", handleVisibilityChange)
 
-    // Simulate other violations for demo
+    // Simulate other violations for demo (DISABLED to save Firebase quota)
+    // Uncomment this in production with real AI detection
+    /*
     const simulationInterval = setInterval(() => {
       if (Math.random() > 0.95) {
         logViolationEvent("out-of-frame", "Person moved out of camera frame", "medium")
@@ -49,10 +55,11 @@ export function ViolationTrackerCompact({ currentSection = "mcq1" }: ViolationTr
         logViolationEvent("headphones", "Headphones detected", "medium")
       }
     }, 5000)
+    */
 
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange)
-      clearInterval(simulationInterval)
+      // clearInterval(simulationInterval) // Uncomment when simulation is enabled
     }
   }, [logViolationEvent])
 

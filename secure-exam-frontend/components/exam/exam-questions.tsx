@@ -26,6 +26,8 @@ interface ExamQuestionsProps {
   onClearResponse: (questionId: number) => void
   onQuestionVisit: (questionId: number) => void
   onBackToSections: () => void
+  nextSectionRoute?: string
+  onNavigateToNextSection?: () => void
 }
 
 export function ExamQuestions({ 
@@ -36,7 +38,9 @@ export function ExamQuestions({
   onMarkForReview,
   onClearResponse,
   onQuestionVisit,
-  onBackToSections
+  onBackToSections,
+  nextSectionRoute,
+  onNavigateToNextSection
 }: ExamQuestionsProps) {
   const [currentQuestion, setCurrentQuestion] = useState(0)
 
@@ -70,6 +74,9 @@ export function ExamQuestions({
   const handleNext = () => {
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(currentQuestion + 1)
+    } else if (currentQuestion === questions.length - 1 && onNavigateToNextSection) {
+      // On last question, navigate to next section
+      onNavigateToNextSection()
     }
   }
 
@@ -203,10 +210,10 @@ export function ExamQuestions({
         
         <Button
           onClick={handleNext}
-          disabled={currentQuestion === questions.length - 1}
+          disabled={currentQuestion === questions.length - 1 && !onNavigateToNextSection}
           className="flex-1 h-12 gap-2 text-base font-semibold bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700"
         >
-          Next
+          {currentQuestion === questions.length - 1 && nextSectionRoute ? "Next Section" : "Next"}
           <ChevronRight className="h-5 w-5" />
         </Button>
       </div>

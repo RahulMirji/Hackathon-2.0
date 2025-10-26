@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation"
 
 export function AboutSectionRedesigned() {
     const router = useRouter()
-    
+
     const handleNavigation = (path: string) => {
         router.push(path)
     }
@@ -94,7 +94,7 @@ export function AboutSectionRedesigned() {
     ]
 
     return (
-        <section className="bg-gradient-to-b from-white via-blue-50/30 to-white">
+        <section id="about" className="bg-gradient-to-b from-white via-blue-50/30 to-white">
             {/* Hero Section */}
             <div className="relative py-20 md:py-32 px-6 overflow-hidden">
                 <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))] -z-10" />
@@ -198,7 +198,7 @@ export function AboutSectionRedesigned() {
                     </div>
 
                     {/* 3D Carousel */}
-                    <ThreeDCarousel 
+                    <ThreeDCarousel
                         members={teamMembers}
                         autoRotate={true}
                         rotateInterval={5000}
@@ -227,35 +227,7 @@ export function AboutSectionRedesigned() {
                 </div>
             </div>
 
-            {/* CTA Section */}
-            <div className="py-20 md:py-32 px-6">
-                <div className="container mx-auto max-w-5xl">
-                    <Card className="p-12 md:p-16 text-center bg-gradient-to-r from-blue-600 to-cyan-500 border-0">
-                        <h2 className="text-4xl md:text-5xl font-bold mb-6 text-white">
-                            Ready to Transform Your Online Exams?
-                        </h2>
-                        <p className="text-xl text-white/90 leading-relaxed max-w-2xl mx-auto mb-8">
-                            Join thousands of institutions worldwide in delivering secure, fair, and
-                            reliable online examinations with our platform.
-                        </p>
-                        <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                            <Link 
-                                href="/exam/compatibility-check"
-                                className="px-8 py-4 bg-white text-blue-600 rounded-lg font-semibold hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center gap-2 cursor-pointer"
-                            >
-                                Get Started Today
-                                <ArrowRight className="w-5 h-5" />
-                            </Link>
-                            <button 
-                                onClick={() => handleNavigation('/exam/compatibility-check')}
-                                className="px-8 py-4 bg-white/10 text-white border-2 border-white rounded-lg font-semibold hover:bg-white/20 transition-all cursor-pointer flex items-center justify-center"
-                            >
-                                Schedule a Demo
-                            </button>
-                        </div>
-                    </Card>
-                </div>
-            </div>
+
         </section>
     )
 }
