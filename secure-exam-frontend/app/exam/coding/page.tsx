@@ -40,28 +40,14 @@ export default function CodingExamPage() {
   const [showTestResults, setShowTestResults] = useState(false)
   const [codingQuestions, setCodingQuestions] = useState<CodingQuestion[]>([])
   const [isLoadingQuestions, setIsLoadingQuestions] = useState(true)
-  const [isPyodideLoading, setIsPyodideLoading] = useState(false)
 
   const languages = [
-    { value: "python", label: "Python (Browser)" },
-    { value: "javascript", label: "JavaScript (Browser)" },
+    { value: "python", label: "Python" },
+    { value: "javascript", label: "JavaScript" },
+    { value: "c", label: "C" },
+    { value: "cpp", label: "C++" },
+    { value: "java", label: "Java" },
   ]
-
-  // Preload Pyodide when Python is selected
-  useEffect(() => {
-    if (selectedLanguage === 'python' && !isPyodideLoading) {
-      setIsPyodideLoading(true)
-      import('@/lib/browser-code-executor').then(({ loadPyodide }) => {
-        loadPyodide().then(() => {
-          setIsPyodideLoading(false)
-          console.log('✅ Python runtime ready')
-        }).catch((error) => {
-          console.error('❌ Failed to load Python runtime:', error)
-          setIsPyodideLoading(false)
-        })
-      })
-    }
-  }, [selectedLanguage])
 
   // Load questions on mount
   useEffect(() => {
@@ -160,11 +146,52 @@ export default function CodingExamPage() {
 
 `,
       javascript: `// Read input and solve the problem
-// Use input() to read from stdin
+// Use readline() to read from stdin
 // Use console.log() to write to stdout
 
 // Your code here
 
+`,
+      c: `#include <stdio.h>
+
+int main() {
+    // Read input and solve the problem
+    // Use scanf() to read from stdin
+    // Use printf() to write to stdout
+    
+    // Your code here
+    
+    return 0;
+}
+`,
+      cpp: `#include <iostream>
+using namespace std;
+
+int main() {
+    // Read input and solve the problem
+    // Use cin to read from stdin
+    // Use cout to write to stdout
+    
+    // Your code here
+    
+    return 0;
+}
+`,
+      java: `import java.util.*;
+
+public class Solution {
+    public static void main(String[] args) {
+        Scanner sc = new Scanner(System.in);
+        
+        // Read input and solve the problem
+        // Use sc.nextLine() to read from stdin
+        // Use System.out.println() to write to stdout
+        
+        // Your code here
+        
+        sc.close();
+    }
+}
 `
     }
     return templates[lang] || ""
@@ -515,12 +542,12 @@ export default function CodingExamPage() {
                     onClick={handleRun}
                     size="sm"
                     className="gap-2 flex-1 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white disabled:opacity-50"
-                    disabled={isRunning || isPyodideLoading}
+                    disabled={isRunning}
                   >
-                    {isRunning || isPyodideLoading ? (
+                    {isRunning ? (
                       <>
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        {isPyodideLoading ? "Loading Python..." : "Running..."}
+                        Running...
                       </>
                     ) : (
                       <>
