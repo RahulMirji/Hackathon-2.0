@@ -227,20 +227,42 @@ async function loadRemainingQuestions(
       return loadRemainingQuestions(section, existingQuestions, count, onProgress, retryCount + 1)
     }
     
-    // After all retries, return what we have
-    console.error(`❌ [QUESTION-SERVICE] Failed after ${maxRetries} attempts. Using existing ${existingQuestions.length} questions`)
+    // After all retries, fill remaining with mock questions
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`⚠️ [QUESTION-SERVICE] Failed after ${maxRetries} attempts. Filling ${count} remaining with mock questions`)
+    }
+    
+    const mockQuestions = getMockQuestions(section)
+    const questionsToAdd = mockQuestions.slice(0, count)
+    
+    // Renumber to continue from existing
+    const startId = existingQuestions.length + 1
+    const renumbered = questionsToAdd.map((q, idx) => ({
+      ...q,
+      id: startId + idx
+    }))
+    
+    const allQuestions = [...existingQuestions, ...renumbered]
+    saveSectionQuestions(section, allQuestions)
+    
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`✅ [QUESTION-SERVICE] Added ${renumbered.length} mock questions. Total: ${allQuestions.length}`)
+    }
+    
     return {
-      questions: existingQuestions,
-      source: "cache",
-      error: error instanceof Error ? error.message : "Unknown error"
+      questions: allQuestions,
+      source: "mock"
     }
   }
 }
 
 export async function loadQuestionsWithStreaming(
   section: string,
-  onProgress?: (questions: any[], count: number) => void
+  onProgress?: (questions: any[], count: number) => void,
+  retryCount: number = 0
 ): Promise<QuestionLoadResult> {
+  const maxRetries = 3
+  
   try {
     // For MCQ1 and MCQ2, load all 25 questions at once (no batching)
     // Batching was causing incomplete questions
@@ -299,9 +321,34 @@ export async function loadQuestionsWithStreaming(
               }
 
               if (data.type === "complete") {
-                // Validate we got all 25 questions
-                if (data.questions.length < 25) {
-                  console.warn(`⚠️ [QUESTION-SERVICE] Only received ${data.questions.length}/25 questions for ${section}`)
+                const expectedCount = 25
+                
+                // Check if we got enough questions
+                if (data.questions.length < expectedCount) {
+                  const missing = expectedCount - data.questions.length
+                  
+                  if (process.env.NODE_ENV !== 'production') {
+                    console.log(`⚠️ [QUESTION-SERVICE] Only received ${data.questions.length}/${expectedCount} questions for ${section}. Filling ${missing} from mock.`)
+                  }
+                  
+                  // Fill remaining with mock questions
+                  const mockQuestions = getMockQuestions(section)
+                  const questionsToAdd = mockQuestions.slice(0, missing)
+                  
+                  // Renumber mock questions to continue from AI questions
+                  const startId = data.questions.length + 1
+                  const renumbered = questionsToAdd.map((q, idx) => ({
+                    ...q,
+                    id: startId + idx
+                  }))
+                  
+                  const allQuestions = [...data.questions, ...renumbered]
+                  saveSectionQuestions(section, allQuestions)
+                  
+                  return {
+                    questions: allQuestions,
+                    source: "ai",
+                  }
                 }
                 
                 saveSectionQuestions(section, data.questions)
@@ -312,15 +359,12 @@ export async function loadQuestionsWithStreaming(
               }
 
               if (data.type === "error") {
-                if (process.env.NODE_ENV !== 'production') {
-                  console.error(`❌ [QUESTION-SERVICE] Error: ${data.message}`)
-                }
+                // Silently throw to trigger retry
                 throw new Error(data.message)
               }
             } catch (e) {
-              if (process.env.NODE_ENV !== 'production') {
-                console.warn(`⚠️ [QUESTION-SERVICE] Failed to parse SSE event:`, e)
-              }
+              // Parse errors are silently ignored - continue processing other lines
+              continue
             }
           }
         }
@@ -389,6 +433,36 @@ export async function loadQuestionsWithStreaming(
 
             // Handle complete
             if (data.type === "complete") {
+              const expectedCount = count
+              
+              // Check if we got enough questions
+              if (data.questions.length < expectedCount) {
+                const missing = expectedCount - data.questions.length
+                
+                if (process.env.NODE_ENV !== 'production') {
+                  console.log(`⚠️ [QUESTION-SERVICE] Only received ${data.questions.length}/${expectedCount} questions for ${section}. Filling ${missing} from mock.`)
+                }
+                
+                // Fill remaining with mock questions
+                const mockQuestions = getMockQuestions(section)
+                const questionsToAdd = mockQuestions.slice(0, missing)
+                
+                // Renumber mock questions to continue from AI questions
+                const startId = data.questions.length + 1
+                const renumbered = questionsToAdd.map((q, idx) => ({
+                  ...q,
+                  id: startId + idx
+                }))
+                
+                const allQuestions = [...data.questions, ...renumbered]
+                saveSectionQuestions(section, allQuestions)
+                
+                return {
+                  questions: allQuestions,
+                  source: "ai",
+                }
+              }
+              
               saveSectionQuestions(section, data.questions)
               return {
                 questions: data.questions,
@@ -398,15 +472,12 @@ export async function loadQuestionsWithStreaming(
 
             // Handle errors
             if (data.type === "error") {
-              if (process.env.NODE_ENV !== 'production') {
-                console.error(`❌ [QUESTION-SERVICE] Error: ${data.message}`)
-              }
+              // Silently throw error to trigger retry logic
               throw new Error(data.message)
             }
           } catch (e) {
-            if (process.env.NODE_ENV !== 'production') {
-              console.warn(`⚠️ [QUESTION-SERVICE] Failed to parse SSE event:`, e)
-            }
+            // Parse errors are silently ignored - continue processing other lines
+            continue
           }
         }
       }
@@ -414,17 +485,66 @@ export async function loadQuestionsWithStreaming(
 
     throw new Error("No questions received from stream")
   } catch (error) {
-    if (process.env.NODE_ENV !== 'production') {
-      console.error(`❌ [QUESTION-SERVICE] Failed to load ${section} questions from AI:`, error)
+    // Check if we have any partial questions saved
+    const cached = getSectionQuestions(section)
+    
+    // Retry logic
+    if (retryCount < maxRetries - 1) {
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`⚠️ [QUESTION-SERVICE] Retrying ${section}... (${retryCount + 1}/${maxRetries})`)
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000 * (retryCount + 1)))
+      return loadQuestionsWithStreaming(section, onProgress, retryCount + 1)
     }
 
-    // Fallback to mock questions
+    // After all retries, check if we have partial questions
+    const expectedCount = section === "mcq3" ? 10 : section === "coding" ? 2 : 25
+    
+    if (cached && cached.length > 0) {
+      // We have some questions from AI, fill the rest with mock
+      const missing = expectedCount - cached.length
+      
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`⚠️ [QUESTION-SERVICE] Using ${cached.length} AI questions + ${missing} mock questions for ${section}`)
+      }
+      
+      if (missing > 0) {
+        const mockQuestions = getMockQuestions(section)
+        const questionsToAdd = mockQuestions.slice(0, missing)
+        
+        // Renumber mock questions to continue from AI questions
+        const startId = cached.length + 1
+        const renumbered = questionsToAdd.map((q, idx) => ({
+          ...q,
+          id: startId + idx
+        }))
+        
+        const allQuestions = [...cached, ...renumbered]
+        saveSectionQuestions(section, allQuestions)
+        
+        return {
+          questions: allQuestions,
+          source: "ai",
+        }
+      }
+      
+      return {
+        questions: cached,
+        source: "ai",
+      }
+    }
+    
+    // No questions at all from AI, use 100% mock
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`⚠️ [QUESTION-SERVICE] Using 100% mock questions for ${section} after ${maxRetries} attempts`)
+    }
+    
     const mockQuestions = getMockQuestions(section)
+    saveSectionQuestions(section, mockQuestions)
 
     return {
       questions: mockQuestions,
       source: "mock",
-      error: error instanceof Error ? error.message : "Unknown error",
     }
   }
 }

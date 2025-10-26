@@ -20,12 +20,14 @@ import {
 import { getCurrentExamId } from "@/lib/exam-session"
 import { getExamResult, calculateAndSaveResult } from "@/lib/firestore-service"
 import type { ExamResult } from "@/lib/types/exam-types"
+import { jsPDF } from "jspdf"
 
 export default function ExamResultsPage() {
   const router = useRouter()
   const [result, setResult] = useState<ExamResult | null>(null)
   const [loading, setLoading] = useState(true)
   const [calculating, setCalculating] = useState(false)
+  const [downloadingPDF, setDownloadingPDF] = useState(false)
 
   useEffect(() => {
     loadResults()
@@ -69,6 +71,138 @@ export default function ExamResultsPage() {
     if (grade === "B+" || grade === "B") return "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-800"
     if (grade === "C") return "bg-yellow-50 dark:bg-yellow-950/30 border-yellow-200 dark:border-yellow-800"
     return "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800"
+  }
+
+  const handleDownloadPDF = () => {
+    if (!result) return
+    
+    setDownloadingPDF(true)
+    
+    try {
+      const doc = new jsPDF()
+      const pageWidth = doc.internal.pageSize.getWidth()
+      const pageHeight = doc.internal.pageSize.getHeight()
+      let yPos = 20
+      
+      // Header
+      doc.setFillColor(59, 130, 246) // Blue
+      doc.rect(0, 0, pageWidth, 40, 'F')
+      doc.setTextColor(255, 255, 255)
+      doc.setFontSize(24)
+      doc.text("Exam Results", pageWidth / 2, 20, { align: 'center' })
+      doc.setFontSize(12)
+      doc.text("Computer Science - Final Assessment", pageWidth / 2, 30, { align: 'center' })
+      
+      yPos = 50
+      
+      // Score Section
+      doc.setTextColor(0, 0, 0)
+      doc.setFontSize(16)
+      doc.text("Overall Score", 20, yPos)
+      yPos += 10
+      
+      doc.setFontSize(14)
+      doc.text(`Score: ${result.totalScore} / ${result.maxScore} Points`, 20, yPos)
+      yPos += 8
+      doc.text(`Percentage: ${result.percentage.toFixed(1)}%`, 20, yPos)
+      yPos += 15
+      
+      // Quick Stats
+      doc.setFontSize(16)
+      doc.text("Quick Stats", 20, yPos)
+      yPos += 10
+      
+      doc.setFontSize(12)
+      doc.text(`Correct: ${result.totalCorrect}`, 20, yPos)
+      yPos += 7
+      doc.text(`Incorrect: ${result.totalIncorrect}`, 20, yPos)
+      yPos += 7
+      doc.text(`Skipped: ${result.totalSkipped}`, 20, yPos)
+      yPos += 15
+      
+      // Time Analysis
+      doc.setFontSize(16)
+      doc.text("Time Analysis", 20, yPos)
+      yPos += 10
+      
+      doc.setFontSize(12)
+      doc.text(`Total Time: ${result.totalTimeTaken} minutes`, 20, yPos)
+      yPos += 7
+      doc.text(`Avg per Question: ${result.averageTimePerQuestion.toFixed(1)}s`, 20, yPos)
+      yPos += 15
+      
+      // Section-wise Performance
+      doc.setFontSize(16)
+      doc.text("Section-wise Performance", 20, yPos)
+      yPos += 10
+      
+      const sections = [
+        { name: "MCQ 1 - General & Technical", data: result.sectionScores.mcq1 },
+        { name: "MCQ 2 - Coding Questions", data: result.sectionScores.mcq2 },
+        { name: "MCQ 3 - English Language", data: result.sectionScores.mcq3 },
+        { name: "Coding - Programming Tasks", data: result.sectionScores.coding },
+      ]
+      
+      sections.forEach((section) => {
+        if (yPos > pageHeight - 40) {
+          doc.addPage()
+          yPos = 20
+        }
+        
+        doc.setFontSize(14)
+        doc.setTextColor(59, 130, 246)
+        doc.text(section.name, 20, yPos)
+        yPos += 8
+        
+        doc.setFontSize(11)
+        doc.setTextColor(0, 0, 0)
+        doc.text(`Score: ${section.data.score}/${section.data.maxScore} (${section.data.percentage.toFixed(1)}%)`, 25, yPos)
+        yPos += 6
+        doc.text(`Answered: ${section.data.questionsAnswered}`, 25, yPos)
+        yPos += 6
+        doc.text(`Avg Time: ${section.data.averageTimePerQuestion.toFixed(1)}s`, 25, yPos)
+        yPos += 10
+      })
+      
+      // Violations (if any)
+      if (result.violationCount > 0) {
+        if (yPos > pageHeight - 40) {
+          doc.addPage()
+          yPos = 20
+        }
+        
+        doc.setFontSize(16)
+        doc.setTextColor(234, 88, 12) // Orange
+        doc.text("Violations", 20, yPos)
+        yPos += 10
+        
+        doc.setFontSize(12)
+        doc.setTextColor(0, 0, 0)
+        doc.text(`Total Violations: ${result.violationCount}`, 20, yPos)
+        yPos += 7
+        doc.text(`Penalty: -${result.violationPenalty} points`, 20, yPos)
+        
+        if (result.flaggedForReview) {
+          yPos += 7
+          doc.setTextColor(220, 38, 38) // Red
+          doc.text("⚠ Flagged for manual review", 20, yPos)
+        }
+      }
+      
+      // Footer
+      doc.setFontSize(10)
+      doc.setTextColor(128, 128, 128)
+      doc.text(`Generated on: ${new Date().toLocaleString()}`, pageWidth / 2, pageHeight - 10, { align: 'center' })
+      doc.text(`Exam ID: ${result.examId}`, pageWidth / 2, pageHeight - 5, { align: 'center' })
+      
+      // Save PDF
+      doc.save(`exam-results-${result.examId}.pdf`)
+    } catch (error) {
+      console.error("Failed to generate PDF:", error)
+      alert("Failed to generate PDF. Please try again.")
+    } finally {
+      setDownloadingPDF(false)
+    }
   }
 
   if (loading || calculating) {
@@ -125,9 +259,24 @@ export default function ExamResultsPage() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-2">
-                <Download className="h-4 w-4" />
-                Download PDF
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2"
+                onClick={handleDownloadPDF}
+                disabled={downloadingPDF}
+              >
+                {downloadingPDF ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4" />
+                    Download PDF
+                  </>
+                )}
               </Button>
               <Button onClick={() => router.push("/")} size="sm" className="gap-2">
                 <Home className="h-4 w-4" />
@@ -143,18 +292,17 @@ export default function ExamResultsPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Overall Score */}
           <div className="lg:col-span-1 space-y-6">
-            {/* Grade Card */}
-            <Card className={`p-6 border-2 ${getGradeBg(result.grade)}`}>
+            {/* Score Card */}
+            <Card className="p-6 border-2 bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 border-blue-200 dark:border-blue-800">
               <div className="text-center">
-                <Award className={`h-16 w-16 mx-auto mb-4 ${getGradeColor(result.grade)}`} />
-                <h2 className="text-5xl font-bold mb-2">{result.grade}</h2>
-                <p className="text-lg font-semibold mb-4">{result.percentage.toFixed(1)}%</p>
-                <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                <Award className="h-16 w-16 mx-auto mb-4 text-blue-600" />
+                <h2 className="text-4xl font-bold mb-2">Your Score</h2>
+                <div className="flex items-center justify-center gap-2 text-3xl font-bold text-blue-600">
                   <span>{result.totalScore}</span>
                   <span>/</span>
                   <span>{result.maxScore}</span>
-                  <span>Points</span>
                 </div>
+                <p className="text-sm text-muted-foreground mt-2">Points</p>
               </div>
             </Card>
 
@@ -273,33 +421,16 @@ export default function ExamResultsPage() {
               </div>
             </Card>
 
-            {/* Performance Insights */}
-            <Card className="p-6">
-              <h3 className="font-semibold text-lg mb-4">Performance Insights</h3>
+            {/* Results Notice */}
+            <Card className="p-6 bg-blue-50 dark:bg-blue-950/30 border-2 border-blue-200 dark:border-blue-800">
+              <h3 className="font-semibold text-lg mb-4">📧 Final Results</h3>
               <div className="space-y-3">
-                {result.percentage >= 90 && (
-                  <div className="p-4 bg-green-50 dark:bg-green-950/30 rounded-lg border border-green-200 dark:border-green-800">
-                    <p className="text-sm text-green-800 dark:text-green-200">
-                      🎉 <strong>Excellent Performance!</strong> You've demonstrated strong understanding across all sections.
-                    </p>
-                  </div>
-                )}
-                
-                {result.percentage >= 70 && result.percentage < 90 && (
-                  <div className="p-4 bg-blue-50 dark:bg-blue-950/30 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                      👍 <strong>Good Job!</strong> You've shown solid understanding. Review the sections where you scored lower.
-                    </p>
-                  </div>
-                )}
-                
-                {result.percentage < 70 && (
-                  <div className="p-4 bg-yellow-50 dark:bg-yellow-950/30 rounded-lg border border-yellow-200 dark:border-yellow-800">
-                    <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                      💪 <strong>Keep Practicing!</strong> Focus on strengthening your fundamentals in the weaker sections.
-                    </p>
-                  </div>
-                )}
+                <p className="text-sm text-blue-900 dark:text-blue-100">
+                  Thank you for completing the exam! Your detailed results will be sent to your registered email address within 24-48 hours.
+                </p>
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  The above scores are for your reference. Our team will review your submissions and send you the official results.
+                </p>
               </div>
             </Card>
           </div>
@@ -342,8 +473,8 @@ function SectionCard({
             <p className="text-lg font-bold">{score.percentage.toFixed(1)}%</p>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Correct</p>
-            <p className="text-lg font-bold text-green-600">{score.questionsCorrect}</p>
+            <p className="text-xs text-muted-foreground mb-1">Answered</p>
+            <p className="text-lg font-bold text-blue-600">{score.questionsAnswered}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground mb-1">Avg Time</p>

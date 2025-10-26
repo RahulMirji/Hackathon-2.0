@@ -461,6 +461,7 @@ export async function saveCodeSubmission(
     await updateDoc(docRef, {
       codeSubmissions: submissions,
       userAnswer: submission.code,
+      isCorrect: submission.allTestsPassed,
       lastModifiedAt: now,
       updatedAt: now,
     })
@@ -471,6 +472,7 @@ export async function saveCodeSubmission(
       section,
       questionNumber,
       userAnswer: submission.code,
+      isCorrect: submission.allTestsPassed,
       status: "answered",
       markedForReview: false,
       timeSpent: 0,
@@ -677,15 +679,23 @@ export async function calculateAndSaveResult(examId: string): Promise<ExamResult
   
   // Calculate scores per section
   const sectionScores = {
-    mcq1: calculateSectionScore("mcq1", questions.docs, answers),
-    mcq2: calculateSectionScore("mcq2", questions.docs, answers),
-    mcq3: calculateSectionScore("mcq3", questions.docs, answers),
-    coding: calculateSectionScore("coding", questions.docs, answers),
+    mcq1: calculateSectionScore("mcq1", questions.docs, answers, session.sectionTimestamps),
+    mcq2: calculateSectionScore("mcq2", questions.docs, answers, session.sectionTimestamps),
+    mcq3: calculateSectionScore("mcq3", questions.docs, answers, session.sectionTimestamps),
+    coding: calculateSectionScore("coding", questions.docs, answers, session.sectionTimestamps),
   }
   
   const totalScore = Object.values(sectionScores).reduce((sum, s) => sum + s.score, 0)
   const maxScore = Object.values(sectionScores).reduce((sum, s) => sum + s.maxScore, 0)
   const percentage = maxScore > 0 ? (totalScore / maxScore) * 100 : 0
+  
+  // Calculate total time taken if not already set
+  let totalTimeTaken = session.totalDuration
+  if (totalTimeTaken === 0 && session.endTime) {
+    const startTime = session.startTime.toDate()
+    const endTime = session.endTime.toDate()
+    totalTimeTaken = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60))
+  }
   
   const result: ExamResult = {
     resultId: examId,
@@ -702,7 +712,7 @@ export async function calculateAndSaveResult(examId: string): Promise<ExamResult
     totalCorrect: answers.filter(a => a.isCorrect).length,
     totalIncorrect: answers.filter(a => a.isCorrect === false).length,
     totalSkipped: questions.size - answers.filter(a => a.userAnswer).length,
-    totalTimeTaken: session.totalDuration,
+    totalTimeTaken: totalTimeTaken,
     averageTimePerQuestion: answers.length > 0 
       ? answers.reduce((sum, a) => sum + a.timeSpent, 0) / answers.length 
       : 0,
@@ -738,7 +748,8 @@ export async function calculateAndSaveResult(examId: string): Promise<ExamResult
 function calculateSectionScore(
   section: SectionType,
   questions: any[],
-  answers: AnswerDocument[]
+  answers: AnswerDocument[],
+  sessionTimestamps?: any
 ): any {
   const sectionQuestions = questions.filter(q => q.data().section === section)
   const sectionAnswers = answers.filter(a => a.section === section)
@@ -756,10 +767,22 @@ function calculateSectionScore(
       skipped++
     } else {
       totalTime += answer.timeSpent
-      if (answer.userAnswer === questionData.correctAnswer) {
-        correct++
+      
+      // For coding questions, check if the latest submission passed all tests
+      if (section === "coding" && answer.codeSubmissions && answer.codeSubmissions.length > 0) {
+        const latestSubmission = answer.codeSubmissions[answer.codeSubmissions.length - 1]
+        if (latestSubmission.allTestsPassed) {
+          correct++
+        } else {
+          incorrect++
+        }
       } else {
-        incorrect++
+        // For MCQ questions, check if answer matches correct answer
+        if (answer.userAnswer === questionData.correctAnswer) {
+          correct++
+        } else {
+          incorrect++
+        }
       }
     }
   })
@@ -768,15 +791,32 @@ function calculateSectionScore(
   const score = correct
   const percentage = maxScore > 0 ? (score / maxScore) * 100 : 0
   
+  // Calculate average time
+  let avgTime = 0
+  const answeredCount = sectionAnswers.filter(a => a.userAnswer).length
+  
+  // For coding section, use section timestamps if available and timeSpent is 0
+  if (section === "coding" && totalTime === 0 && sessionTimestamps && sessionTimestamps[section]) {
+    const sectionTime = sessionTimestamps[section]
+    if (sectionTime.startTime && sectionTime.endTime) {
+      const start = sectionTime.startTime.toDate()
+      const end = sectionTime.endTime.toDate()
+      const durationSeconds = Math.round((end.getTime() - start.getTime()) / 1000)
+      avgTime = maxScore > 0 ? durationSeconds / maxScore : 0
+    }
+  } else {
+    avgTime = answeredCount > 0 ? totalTime / answeredCount : 0
+  }
+  
   return {
     score,
     maxScore,
     percentage,
-    questionsAnswered: sectionAnswers.filter(a => a.userAnswer).length,
+    questionsAnswered: answeredCount,
     questionsCorrect: correct,
     questionsIncorrect: incorrect,
     questionsSkipped: skipped,
-    averageTimePerQuestion: sectionAnswers.length > 0 ? totalTime / sectionAnswers.length : 0,
+    averageTimePerQuestion: avgTime,
   }
 }
 

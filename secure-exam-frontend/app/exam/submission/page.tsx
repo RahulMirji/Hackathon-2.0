@@ -27,11 +27,11 @@ export default function ExamSubmissionPage() {
 
     try {
       setMessage("Verifying exam session...")
-      
+
       // Import getExamSession to verify session exists
       const { getExamSession } = await import("@/lib/firestore-service")
       const session = await getExamSession(examId)
-      
+
       if (!session) {
         // Session doesn't exist - attempt recovery
         console.error("❌ [SUBMISSION] Session not found, attempting recovery")
@@ -43,17 +43,23 @@ export default function ExamSubmissionPage() {
         )
         return
       }
-      
+
       setMessage("Finalizing your answers...")
-      
+
+      // Calculate total duration
+      const endTime = new Date()
+      const startTime = session.startTime.toDate()
+      const totalDurationMinutes = Math.round((endTime.getTime() - startTime.getTime()) / (1000 * 60))
+
       // Mark exam as completed
       await updateExamSession(examId, {
         status: "completed",
-        endTime: new Date() as any,
+        endTime: endTime as any,
+        totalDuration: totalDurationMinutes,
       })
 
       setMessage("Calculating your results...")
-      
+
       // Calculate and save results
       await calculateAndSaveResult(examId)
 
@@ -67,10 +73,10 @@ export default function ExamSubmissionPage() {
     } catch (error) {
       console.error("❌ [SUBMISSION] Failed to submit exam:", error)
       setStatus("error")
-      
+
       // Parse error to provide specific guidance
       const errorMsg = error instanceof Error ? error.message : String(error)
-      
+
       if (errorMsg.includes("session not found") || errorMsg.includes("does not exist")) {
         setMessage(
           `Exam session not found. The session may not have been properly initialized. ` +
@@ -120,14 +126,14 @@ export default function ExamSubmissionPage() {
                 <Button onClick={() => router.push("/exam/sections")} variant="outline" className="w-full">
                   Back to Sections
                 </Button>
-                <Button 
+                <Button
                   onClick={() => {
                     const examId = getCurrentExamId()
                     const diagnosticInfo = `Exam ID: ${examId}\nTimestamp: ${new Date().toISOString()}\nError: ${message}`
                     navigator.clipboard.writeText(diagnosticInfo)
                     alert("Diagnostic info copied to clipboard. Please contact support.")
-                  }} 
-                  variant="ghost" 
+                  }}
+                  variant="ghost"
                   size="sm"
                   className="w-full"
                 >

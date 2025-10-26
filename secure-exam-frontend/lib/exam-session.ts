@@ -232,6 +232,7 @@ export function clearExamSession(): void {
 
   localStorage.removeItem(STORAGE_KEY)
   localStorage.removeItem(EXAM_ID_KEY)
+  localStorage.removeItem(FIRESTORE_SESSION_CREATED_KEY)
   if (process.env.NODE_ENV !== 'production') {
     console.log("🗑️ [SESSION] Cleared exam session")
   }
