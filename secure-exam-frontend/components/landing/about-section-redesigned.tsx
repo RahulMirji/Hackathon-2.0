@@ -19,7 +19,7 @@ export function AboutSectionRedesigned() {
             id: 1,
             name: "Rahul Mirji",
             role: "Team Leader | AI & Machine Learning",
-            imageUrl: "/rahul.jpg",
+            imageUrl: "/Rahul Mirji.jpg",
             isLeader: true,
             bio: "HKBK College of Engineering\ndevprahulmirji@gmail.com"
         },
@@ -27,28 +27,28 @@ export function AboutSectionRedesigned() {
             id: 2,
             name: "Samarth Jadhav",
             role: "Team Member | AI & Machine Learning",
-            imageUrl: "/Sam-profile 1.png",
+            imageUrl: "/Samarth Jadhav.jpg",
             bio: "Presidency University\nsamarthjadhavsj121@gmail.com"
         },
         {
             id: 3,
             name: "Praveen Mirji",
             role: "Team Member | AI & Machine Learning",
-            imageUrl: "/praveen.jpg",
+            imageUrl: "/Praveen.jpg",
             bio: "BMS College of Engineering\npraveenmirji866@gmail.com"
         },
         {
             id: 4,
             name: "Imtiyaz Akiwat",
             role: "Team Member | Computer Science",
-            imageUrl: "/imtiyaz.jpg",
+            imageUrl: "/ImatiyazAkiwat.jpg",
             bio: "SSMS College Athani\nimtiyazakiwat0@gmail.com"
         },
         {
             id: 5,
             name: "Abid N G",
             role: "Team Member | AI & Data Science",
-            imageUrl: "/abid.jpg",
+            imageUrl: "/Abid googi.jpg",
             bio: "Don Bosco Institute of Technology\nabidgogi93@gmail.com"
         },
     ]

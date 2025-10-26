@@ -112,7 +112,8 @@ export function ThreeDCarousel({
                                             alt={member.name}
                                             width={208}
                                             height={208}
-                                            className="object-cover w-full h-full scale-110"
+                                            className="object-cover w-full h-full object-center-bottom"
+                                            style={{ objectPosition: '50% 35%' }}
                                         />
                                     </div>
                                     {member.isLeader && (

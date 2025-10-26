@@ -403,6 +403,15 @@ public class Solution {
       <div className="sticky top-0 z-40 border-b border-border bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm">
         <div className="max-w-[1400px] mx-auto px-16 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/exam/mcq3")}
+              className="gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="Go back to MCQ 3"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
             <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-orange-600 to-red-600 flex items-center justify-center shadow-md">
               <span className="text-sm font-bold text-white">HP</span>
             </div>

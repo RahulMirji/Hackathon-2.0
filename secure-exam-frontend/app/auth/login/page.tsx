@@ -1,9 +1,13 @@
 "use client"
 
 import { LoginForm } from '@/components/auth/login-form';
+import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 
 export default function LoginPage() {
+  const searchParams = useSearchParams();
+  const redirect = searchParams.get('redirect'); // Get redirect parameter (e.g., 'demo')
+  
   return (
     <div className="relative flex h-screen w-full items-center justify-center overflow-hidden bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500">
       {/* Animated background elements */}
@@ -38,7 +42,7 @@ export default function LoginPage() {
           {/* Angled edge effect */}
           <div className="hidden md:block absolute left-0 top-0 bottom-0 w-32 bg-white transform skew-x-[8deg] -translate-x-16"></div>
           
-          <LoginForm />
+          <LoginForm redirect={redirect} />
         </div>
       </div>
     </div>

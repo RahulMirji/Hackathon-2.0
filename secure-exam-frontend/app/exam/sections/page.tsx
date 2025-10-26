@@ -7,6 +7,9 @@ import { Button } from "@/components/ui/button"
 import { Code, BookOpen, FileText, Clock, CheckCircle, Terminal, Loader2, AlertCircle } from "lucide-react"
 import { MonitoringOverlay } from "@/components/exam/monitoring-overlay"
 import { ViolationTracker } from "@/components/exam/violation-tracker"
+import { ExamTerminationModal } from "@/components/exam/exam-termination-modal"
+import { useStrictFullscreenLock } from "@/hooks/use-strict-fullscreen-lock"
+import { autoSubmitExamOnViolation, markExamAsTerminated, isExamTerminated } from "@/lib/exam-auto-submit"
 import { 
   getCurrentExamId, 
   getSectionQuestions,
@@ -25,11 +28,63 @@ export default function ExamSectionsPage() {
   const [questionCounts, setQuestionCounts] = useState<Record<string, number>>({})
   const [questionSources, setQuestionSources] = useState<Record<string, "api" | "mock" | "cache" | "ai">>({})
   const [allLoaded, setAllLoaded] = useState(false)
+  const [tabSwitchWarning, setTabSwitchWarning] = useState(false)
+  const [showTerminationModal, setShowTerminationModal] = useState(false)
+  const [terminationReason, setTerminationReason] = useState<"tab-switch" | "fullscreen-exit">("tab-switch")
+  const [isExamTerminated, setIsExamTerminated] = useState(false)
 
   // Initialize exam session in Firestore
   const [sessionError, setSessionError] = useState<string | null>(null)
   const [isInitializing, setIsInitializing] = useState(false)
   const [sessionInitialized, setSessionInitialized] = useState(false)
+
+  // Handle violation - auto-submit and show termination modal
+  const handleCriticalViolation = async (reason: "tab-switch" | "fullscreen-exit") => {
+    const examId = getCurrentExamId()
+    
+    if (!examId || isExamTerminated) {
+      console.warn("⚠️ Exam already terminated or no exam ID")
+      return
+    }
+
+    try {
+      console.log(`🚨 CRITICAL VIOLATION DETECTED: ${reason}`)
+      
+      // Mark exam as terminated
+      markExamAsTerminated(reason)
+      setIsExamTerminated(true)
+      
+      // Auto-submit exam
+      await autoSubmitExamOnViolation({
+        reason,
+        description: `User attempted ${reason} during exam`,
+      })
+      
+      // Show termination modal
+      setTerminationReason(reason)
+      setShowTerminationModal(true)
+      
+      console.log("✓ Exam terminated and auto-submitted")
+    } catch (error) {
+      console.error("❌ Failed to handle violation:", error)
+      setSessionError("Failed to process exam termination. Please contact support.")
+    }
+  }
+
+  // Setup strict fullscreen lock
+  const { hasViolation, getTabSwitchCount } = useStrictFullscreenLock({
+    onTabSwitchDetected: () => {
+      setTabSwitchWarning(true)
+      // Trigger auto-submit on tab switch
+      handleCriticalViolation("tab-switch")
+      // Hide warning after 3 seconds
+      setTimeout(() => setTabSwitchWarning(false), 3000)
+    },
+    onViolation: () => {
+      handleCriticalViolation("tab-switch")
+    },
+    enabled: sessionInitialized && !isExamTerminated,
+  })
 
   useEffect(() => {
     const initializeExam = async () => {
@@ -363,6 +418,18 @@ export default function ExamSectionsPage() {
           </div>
         </div>
       </div>
+
+      {/* Exam Termination Modal */}
+      <ExamTerminationModal
+        isOpen={showTerminationModal}
+        violationType={terminationReason}
+        onClose={() => {
+          router.push("/exam/results")
+        }}
+        onViewResults={() => {
+          router.push("/exam/results")
+        }}
+      />
     </main>
   )
 }

@@ -8,7 +8,7 @@ import { MonitoringOverlay } from "@/components/exam/monitoring-overlay"
 import { ExamTimer } from "@/components/exam/exam-timer"
 import { ExamQuestions } from "@/components/exam/exam-questions"
 import { ViolationTracker } from "@/components/exam/violation-tracker"
-import { AlertCircle, FileText, HelpCircle, Send } from "lucide-react"
+import { AlertCircle, FileText, HelpCircle, Send, ChevronLeft } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { getSectionInfo } from "@/lib/question-banks"
 import { getSectionQuestions } from "@/lib/exam-session"
@@ -235,6 +235,15 @@ export default function MCQ2Page() {
       <div className="exam-header sticky top-0 z-40 border-b border-border bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm shadow-sm">
         <div className="max-w-[1600px] mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => router.push("/exam/mcq1")}
+              className="gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+              title="Go back to MCQ 1"
+            >
+              <ChevronLeft className="h-5 w-5" />
+            </Button>
             <div className="h-10 w-10 rounded-lg bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center shadow-md">
               <FileText className="h-5 w-5 text-white" />
             </div>

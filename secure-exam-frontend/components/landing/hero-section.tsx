@@ -1,55 +1,108 @@
 "use client"
 
 import { useRouter } from "next/navigation"
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Github, Loader } from "lucide-react"
 import { useInView } from "@/hooks/use-in-view"
 import { useParallax } from "@/hooks/use-parallax"
 
+// Cache for GitHub URL
+const GITHUB_URL = "https://github.com/RahulMirji/Hackathon-2.0.git"
+
 export function HeroSection() {
   const router = useRouter()
   const [isNavigating, setIsNavigating] = useState(false)
+  const [isFirebaseReady, setIsFirebaseReady] = useState(false)
   const authCheckRef = useRef<Promise<boolean>>(null as any)
+  const firebaseCacheRef = useRef<any>(null)
   
   const { ref: contentRef, inView: contentInView } = useInView<HTMLDivElement>({ threshold: 0.2 })
   const { ref: mockupRef, inView: mockupInView } = useInView<HTMLDivElement>({ threshold: 0.2 })
   const { ref: parallax1Ref, offset: parallax1Offset } = useParallax({ speed: 0.2 })
   const { ref: parallax2Ref, offset: parallax2Offset } = useParallax({ speed: 0.3 })
 
+  // Pre-initialize Firebase on component mount (cache it)
+  useEffect(() => {
+    const preinitializeFirebase = async () => {
+      try {
+        // Check if already cached
+        if (firebaseCacheRef.current) {
+          setIsFirebaseReady(true)
+          return
+        }
+
+        // Import Firebase module
+        const firebaseModule = await import("@/lib/firebase")
+        firebaseCacheRef.current = firebaseModule.auth
+
+        // Warm up the connection by checking auth state
+        if (firebaseModule.auth.currentUser !== undefined) {
+          setIsFirebaseReady(true)
+        }
+      } catch (error) {
+        console.warn("Firebase pre-initialization failed, will initialize on demand:", error)
+        // Still mark as ready so buttons work, it'll load on demand
+        setIsFirebaseReady(true)
+      }
+    }
+
+    // Execute on next tick to not block rendering
+    const timeoutId = setTimeout(preinitializeFirebase, 100)
+    return () => clearTimeout(timeoutId)
+  }, [])
+
   const checkAuthAndNavigate = async () => {
-    setIsNavigating(true)
     try {
-      // Import dynamically to not block initial render
-      const { auth } = await import("@/lib/firebase")
-      const { onAuthStateChanged } = await import("firebase/auth")
+      // Use cached Firebase if available, otherwise import fresh
+      let authModule = firebaseCacheRef.current
       
+      if (!authModule) {
+        const { auth } = await import("@/lib/firebase")
+        authModule = auth
+        firebaseCacheRef.current = auth
+      }
+
       // Check current auth state (non-blocking)
-      const currentUser = auth.currentUser
-      
+      const currentUser = authModule.currentUser
+
       if (currentUser) {
+        // Already logged in - go directly to compatibility check
         router.push("/exam/compatibility-check")
       } else {
-        router.push("/auth/login")
+        // Not logged in - go to login with redirect intent
+        // User will be redirected to compatibility page after login
+        router.push("/auth/login?redirect=demo")
       }
     } catch (error) {
       console.error("Auth check failed:", error)
-      // Default to login on error
-      router.push("/auth/login")
+      // Default to login on error with redirect intent
+      router.push("/auth/login?redirect=demo")
     }
   }
 
   const handleTryDemo = () => {
-    // Immediate UI feedback
+    // Immediate UI feedback - no waiting
     setIsNavigating(true)
-    // Use requestAnimationFrame for instant responsiveness
-    requestAnimationFrame(() => {
-      checkAuthAndNavigate()
-    })
+    
+    // If Firebase is ready, navigate immediately
+    if (isFirebaseReady) {
+      // Use requestAnimationFrame for instant responsiveness
+      requestAnimationFrame(() => {
+        checkAuthAndNavigate()
+      })
+    } else {
+      // If not ready yet, still proceed with navigation
+      // It will complete faster than waiting
+      requestAnimationFrame(() => {
+        checkAuthAndNavigate()
+      })
+    }
   }
 
   const handleGithub = () => {
-    window.open("https://github.com/RahulMirji/Hackathon-2.0.git", "_blank")
+    // Instant navigation to GitHub - no processing needed
+    window.open(GITHUB_URL, "_blank", "noopener,noreferrer")
   }
 
   return (

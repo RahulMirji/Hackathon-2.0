@@ -18,7 +18,7 @@ import {
   Loader2
 } from "lucide-react"
 import { getCurrentExamId } from "@/lib/exam-session"
-import { getExamResult, calculateAndSaveResult } from "@/lib/firestore-service"
+import { getExamResult, calculateAndSaveResult, getExamSession } from "@/lib/firestore-service"
 import type { ExamResult } from "@/lib/types/exam-types"
 import { jsPDF } from "jspdf"
 
@@ -28,6 +28,7 @@ export default function ExamResultsPage() {
   const [loading, setLoading] = useState(true)
   const [calculating, setCalculating] = useState(false)
   const [downloadingPDF, setDownloadingPDF] = useState(false)
+  const [isViolated, setIsViolated] = useState(false)
 
   useEffect(() => {
     loadResults()
@@ -41,6 +42,15 @@ export default function ExamResultsPage() {
     }
 
     try {
+      // Check if exam was violated
+      const examSession = await getExamSession(examId)
+      if (examSession && (examSession.status === "violated" || (examSession as any).violated)) {
+        setIsViolated(true)
+        setResult(null)
+        setLoading(false)
+        return
+      }
+
       // Try to get existing result
       let examResult = await getExamResult(examId)
       
@@ -227,6 +237,100 @@ export default function ExamResultsPage() {
   }
 
   if (!result) {
+    // Show disqualification screen for violated exams
+    if (isViolated) {
+      return (
+        <main className="min-h-screen bg-gradient-to-br from-red-50 to-rose-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center p-4">
+          <Card className="p-8 max-w-2xl border-2 border-red-600 shadow-2xl">
+            <div className="flex flex-col items-center gap-6">
+              {/* Header Icon */}
+              <div className="w-24 h-24 rounded-full bg-red-100 dark:bg-red-950 flex items-center justify-center">
+                <XCircle className="h-14 w-14 text-red-600 dark:text-red-400" />
+              </div>
+
+              {/* Title */}
+              <div className="text-center space-y-2">
+                <h1 className="text-4xl font-bold text-red-600 dark:text-red-400">
+                  EXAM DISQUALIFIED
+                </h1>
+                <p className="text-lg text-red-700 dark:text-red-300 font-semibold">
+                  Terms and Conditions Violated
+                </p>
+              </div>
+
+              {/* Main Message */}
+              <div className="bg-red-100 dark:bg-red-950/30 border-2 border-red-300 dark:border-red-700 rounded-lg p-6 w-full">
+                <p className="text-center text-red-800 dark:text-red-200 text-lg font-semibold">
+                  Your examination has been terminated due to violation of examination integrity terms and conditions.
+                </p>
+              </div>
+
+              {/* Reason Box */}
+              <div className="bg-yellow-50 dark:bg-yellow-950/20 border-2 border-yellow-300 dark:border-yellow-700 rounded-lg p-6 w-full">
+                <div className="flex gap-4">
+                  <AlertTriangle className="h-6 w-6 text-yellow-600 flex-shrink-0 mt-1" />
+                  <div>
+                    <h3 className="font-semibold text-yellow-900 dark:text-yellow-200 mb-2">
+                      Reason for Disqualification
+                    </h3>
+                    <p className="text-sm text-yellow-800 dark:text-yellow-300">
+                      You have violated critical examination policies including but not limited to: unauthorized tab switching, fullscreen exit, or other suspicious activities that compromise exam integrity.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Consequences */}
+              <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-6 w-full space-y-3">
+                <h3 className="font-semibold text-gray-900 dark:text-white text-lg">
+                  Consequences:
+                </h3>
+                <ul className="space-y-2 text-sm text-gray-700 dark:text-gray-300">
+                  <li className="flex items-start gap-3">
+                    <span className="text-red-600 dark:text-red-400 font-bold">✕</span>
+                    <span>Your exam results will <strong>NOT be declared</strong> or published</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-red-600 dark:text-red-400 font-bold">✕</span>
+                    <span>This violation will be <strong>permanently recorded</strong> in your exam history</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-red-600 dark:text-red-400 font-bold">✕</span>
+                    <span>You may face <strong>restrictions on future exam attempts</strong></span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="text-red-600 dark:text-red-400 font-bold">✕</span>
+                    <span>Additional <strong>disciplinary action</strong> may be taken</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Important Notice */}
+              <div className="bg-red-50 dark:bg-red-950/30 border-l-4 border-red-600 rounded p-4 w-full">
+                <p className="text-sm text-red-700 dark:text-red-300 font-semibold">
+                  ⚠️ <strong>Important:</strong> If you believe this is a mistake, please contact our support team immediately with your exam ID and details of the incident.
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col gap-3 w-full pt-4 border-t border-gray-300 dark:border-gray-700">
+                <Button
+                  onClick={() => router.push("/")}
+                  className="w-full bg-gradient-to-r from-gray-700 to-gray-900 hover:from-gray-800 hover:to-black text-white text-lg py-6"
+                >
+                  Return to Home
+                </Button>
+                <p className="text-center text-xs text-gray-600 dark:text-gray-400">
+                  For support, please contact: <a href="mailto:support@exam.com" className="text-blue-600 dark:text-blue-400 hover:underline">support@exam.com</a>
+                </p>
+              </div>
+            </div>
+          </Card>
+        </main>
+      )
+    }
+
+    // Show default error for missing results
     return (
       <main className="min-h-screen bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-gray-900 dark:to-gray-800 flex items-center justify-center">
         <Card className="p-8 max-w-md text-center">

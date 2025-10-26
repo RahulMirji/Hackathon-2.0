@@ -11,7 +11,7 @@ export function AboutSection() {
             department: "Artificial Intelligence and Machine Learning",
             email: "devprahulmirji@gmail.com",
             college: "HKBK College of Engineering",
-            image: "/rahul.jpg",
+            image: "/Rahul Mirji.jpg",
             isLeader: true,
         },
         {
@@ -20,7 +20,7 @@ export function AboutSection() {
             department: "Artificial Intelligence and Machine Learning",
             email: "praveenmirji866@gmail.com",
             college: "BMS College of Engineering",
-            image: "/praveen.jpg",
+            image: "/Praveen.jpg",
         },
         {
             name: "Samarth A Jadhav",
@@ -28,7 +28,7 @@ export function AboutSection() {
             department: "Artificial Intelligence and Machine Learning",
             email: "samarthjadhavsj121@gmail.com",
             college: "Presidency University",
-            image: "/Sam-profile 1.png",
+            image: "/Samarth Jadhav.jpg",
         },
         {
             name: "Imtiyaz Akiwat",
@@ -36,7 +36,7 @@ export function AboutSection() {
             department: "BSE in Computer Sciences",
             email: "imtiyazakiwat0@gmail.com",
             college: "SSMS College",
-            image: "/imtiyaz.jpg",
+            image: "/ImatiyazAkiwat.jpg",
         },
         {
             name: "Abid N G",
@@ -44,7 +44,7 @@ export function AboutSection() {
             department: "Artificial Intelligence and Data Science",
             email: "abidgogi93@gmail.com",
             college: "Don Bosco Institute of Technology",
-            image: "/abid.jpg",
+            image: "/Abid googi.jpg",
         },
     ]
 

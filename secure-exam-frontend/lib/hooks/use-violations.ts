@@ -14,7 +14,7 @@ interface ViolationCounts {
 }
 
 const VIOLATION_LIMITS = {
-  tabSwitch: 5,
+  tabSwitch: 3,
   personOutOfFrame: 3,
   voiceDetection: 3,
   lookingAway: 10,
@@ -134,6 +134,29 @@ export function useViolations(currentSection: SectionType, onViolationLimitExcee
       if (immediate) {
         // Log immediately for critical violations
         violationFn()
+        
+        // Update UI immediately without waiting for Firestore sync
+        setViolationCounts((prev) => {
+          const updated = { ...prev }
+          switch (type) {
+            case "tab-switch":
+              updated.tabSwitch++
+              break
+            case "out-of-frame":
+              updated.personOutOfFrame++
+              break
+            case "voice-detected":
+              updated.voiceDetection++
+              break
+            case "looking-away":
+              updated.lookingAway++
+              break
+            case "headphones":
+              updated.headphonesDetected = true
+              break
+          }
+          return updated
+        })
       } else {
         // Batch for non-critical violations
         pendingViolations.current.push(violationFn)

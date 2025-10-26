@@ -3,7 +3,7 @@
 import { Timestamp } from "firebase/firestore"
 
 // Exam Session Status
-export type ExamStatus = "in-progress" | "completed" | "submitted" | "flagged"
+export type ExamStatus = "in-progress" | "completed" | "submitted" | "flagged" | "violated"
 
 // Question Status
 export type QuestionStatus = "not-visited" | "not-answered" | "answered" | "marked-review" | "answered-marked"

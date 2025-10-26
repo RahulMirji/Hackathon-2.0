@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { AlertCircle, Camera, CheckCircle2, Upload, User, FileText, ArrowRight, Shield, Eye } from "lucide-react"
+import { AlertCircle, Camera, CheckCircle2, Upload, User, FileText, ArrowRight, Shield, Eye, ChevronLeft } from "lucide-react"
 
 export default function IDVerificationPage() {
   const router = useRouter()
@@ -155,6 +155,15 @@ export default function IDVerificationPage() {
         <div className="max-w-7xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/exam/compatibility-check")}
+                className="gap-2 hover:bg-gray-100"
+                title="Go back to compatibility check"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
               <div className="h-10 w-10 rounded-lg bg-[#4355f9] flex items-center justify-center">
                 <Shield className="h-5 w-5 text-white" strokeWidth={2.5} />
               </div>

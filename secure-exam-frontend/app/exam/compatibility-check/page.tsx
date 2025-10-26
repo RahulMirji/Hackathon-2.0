@@ -29,7 +29,8 @@ import {
   Upload,
   RefreshCw,
   ArrowRight,
-  Settings
+  Settings,
+  ChevronLeft
 } from "lucide-react"
 
 interface SystemCheck {
@@ -613,6 +614,15 @@ const checkBrowser = () => {
         <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/exam/sections")}
+                className="gap-2 hover:bg-gray-100 dark:hover:bg-gray-800"
+                title="Go back to exam sections"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
               <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center shadow-lg">
                 <Activity className="h-6 w-6 text-white" />
               </div>

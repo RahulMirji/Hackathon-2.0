@@ -6,13 +6,27 @@ import { auth } from '@/lib/firebase';
 import { User, Mail, Lock } from 'lucide-react';
 import Link from 'next/link';
 
-export function LoginForm() {
+interface LoginFormProps {
+  redirect?: string | null;
+}
+
+export function LoginForm({ redirect }: LoginFormProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: ''
   });
+
+  // Determine redirect destination based on how user got here
+  const getRedirectPath = () => {
+    if (redirect === 'demo') {
+      // User clicked "Try Demo Exam Now" - take them to compatibility check after login
+      return '/exam/compatibility-check';
+    }
+    // Default - user clicked "Login" button in navbar - return to landing
+    return '/landing';
+  };
 
   const handleEmailSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,8 +61,9 @@ export function LoginForm() {
       // Set cookie for middleware
       document.cookie = `authToken=${token}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
 
-      // Redirect to landing page after successful login
-      window.location.href = '/landing';
+      // Redirect based on where user came from
+      const redirectPath = getRedirectPath();
+      window.location.href = redirectPath;
     } catch (err: any) {
       console.error('Email Sign In Error:', err);
       
@@ -90,8 +105,9 @@ export function LoginForm() {
       // Set cookie for middleware
       document.cookie = `authToken=${token}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
       
-      // Redirect to landing page after successful login
-      window.location.href = '/landing';
+      // Redirect based on where user came from
+      const redirectPath = getRedirectPath();
+      window.location.href = redirectPath;
     } catch (err: any) {
       setError(err.message || 'Failed to login with Google');
     } finally {
@@ -114,8 +130,9 @@ export function LoginForm() {
       // Set cookie for middleware
       document.cookie = `authToken=${token}; path=/; max-age=${60 * 60 * 24 * 7}`; // 7 days
       
-      // Redirect to landing page after successful login
-      window.location.href = '/landing';
+      // Redirect based on where user came from
+      const redirectPath = getRedirectPath();
+      window.location.href = redirectPath;
     } catch (err: any) {
       console.error('GitHub Sign In Error:', err);
       

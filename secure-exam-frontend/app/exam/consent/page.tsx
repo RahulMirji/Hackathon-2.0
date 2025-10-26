@@ -1,11 +1,12 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
+import { useFullscreenLock } from "@/hooks/use-fullscreen-lock"
 import { 
   Shield, 
   Eye, 
@@ -18,32 +19,52 @@ import {
   Monitor,
   Mic,
   UserCheck,
-  Scale
+  Scale,
+  ChevronLeft
 } from "lucide-react"
 
 export default function ConsentPage() {
   const router = useRouter()
   const [finalConsent, setFinalConsent] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [tabSwitchAttempts, setTabSwitchAttempts] = useState(0)
+  const [fullscreenExitAttempts, setFullscreenExitAttempts] = useState(0)
+  
+  const { enterFullscreen, getTabSwitchCount, resetTabSwitchCount } = useFullscreenLock({
+    onTabSwitch: () => {
+      // Log tab switch violation
+      setTabSwitchAttempts(prev => prev + 1)
+      console.warn(`🚨 Tab switch violation! Total attempts: ${tabSwitchAttempts + 1}`)
+      
+      // Store violation data
+      const violations = JSON.parse(sessionStorage.getItem('exam_violations') || '{"tabSwitches": 0, "exitAttempts": 0}')
+      violations.tabSwitches += 1
+      sessionStorage.setItem('exam_violations', JSON.stringify(violations))
+    },
+    onExitAttempt: () => {
+      // Log fullscreen exit violation
+      setFullscreenExitAttempts(prev => prev + 1)
+      console.warn(`🚨 Fullscreen exit attempt! Total attempts: ${fullscreenExitAttempts + 1}`)
+      
+      // Store violation data
+      const violations = JSON.parse(sessionStorage.getItem('exam_violations') || '{"tabSwitches": 0, "exitAttempts": 0}')
+      violations.exitAttempts += 1
+      sessionStorage.setItem('exam_violations', JSON.stringify(violations))
+    }
+  })
 
   const handleContinue = async () => {
     setIsLoading(true)
     
-    // Request fullscreen mode
-    try {
-      const elem = document.documentElement
-      if (elem.requestFullscreen) {
-        await elem.requestFullscreen()
-      } else if ((elem as any).webkitRequestFullscreen) {
-        // Safari
-        await (elem as any).webkitRequestFullscreen()
-      } else if ((elem as any).msRequestFullscreen) {
-        // IE11
-        await (elem as any).msRequestFullscreen()
-      }
-    } catch (error) {
-      console.error("Failed to enter fullscreen:", error)
-      // Continue anyway even if fullscreen fails
+    // Initialize violation tracking
+    resetTabSwitchCount()
+    sessionStorage.setItem('exam_violations', JSON.stringify({ tabSwitches: 0, exitAttempts: 0 }))
+    
+    // Request fullscreen mode with lock
+    const fullscreenEntered = await enterFullscreen()
+    
+    if (!fullscreenEntered) {
+      console.warn("⚠️ Fullscreen failed, but continuing anyway")
     }
     
     // Navigate to sections page
@@ -57,6 +78,15 @@ export default function ConsentPage() {
         <div className="max-w-6xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => router.push("/exam/id-verification")}
+                className="gap-2 hover:bg-gray-100"
+                title="Go back to ID verification"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
               <div className="h-10 w-10 rounded-lg bg-[#1ba94c] flex items-center justify-center">
                 <Scale className="h-5 w-5 text-white" strokeWidth={2.5} />
               </div>
